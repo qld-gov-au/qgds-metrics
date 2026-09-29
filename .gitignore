@@ -4,3 +4,6 @@ fixtures/
 node_modules/
 dist/
 build/
+snapshots/
+dashboard/data/
+*.snapshot.json
