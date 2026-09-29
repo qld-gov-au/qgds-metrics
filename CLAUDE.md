@@ -82,7 +82,7 @@ The dashboard reads only the exported JSON snapshot. It never calls Supabase dir
 
 - Crawl only public pages. Never log in, submit forms or bypass access controls.
 - Respect robots.txt.
-- Identify the crawler with a clear user agent that includes a contact address, for example `QGDS-metrics-crawler/0.1 (+contact@example.qld.gov.au)`. Ask for the real contact address before the first live run.
+- Identify the crawler with a clear user agent that includes the team contact address: `QGDS-metrics-crawler/0.1 (+qgdesignsystem@qld.gov.au)`. This shared inbox is the only contact address used. Never use a personal address.
 - Limit to one request at a time per domain, with a delay between pages.
 - Set sensible timeouts and record failures as results rather than crashing the run.
 - Collect design system signals only. Do not store page content, form data, cookies or any personal information.
