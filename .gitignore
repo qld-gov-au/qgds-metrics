@@ -1,4 +1,6 @@
 .env
+.env.*
+!.env.example
 seeds.txt
 fixtures/
 node_modules/
