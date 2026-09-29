@@ -11,43 +11,71 @@ if (isCI) {
   process.exit(1);
 }
 
-// Seed labels to the codebases the crawler should report.
-const expectedByLabel: Record<string, string[] | null> = {
-  "bootstrap": ["bootstrap"],
-  "web-components": ["web_components"],
-  "qh-vanilla": ["qh_vanilla"],
-  "none": [],
-  "unknown": null, // Recorded, not compared.
+// Seed labels, comma separated, for example "bootstrap, web-components".
+//   bootstrap, web-components, qh-vanilla  uses that codebase
+//   unclear                                follows QGDS without a recognised codebase
+//   none                                   does not use QGDS
+// Every seed needs a label. Leave out sites whose answer is not known.
+const codebaseByLabel: Record<string, string> = {
+  "bootstrap": "bootstrap",
+  "web-components": "web_components",
+  "qh-vanilla": "qh_vanilla",
 };
+const codebaseOrder = ["bootstrap", "web_components", "qh_vanilla"];
 
-const seeds = readFileSync("seeds.txt", "utf8")
-  .split("\n")
-  .map((line) => line.trim())
-  .filter((line) => /^https?:\/\//.test(line))
-  .map((line) => {
-    const [url, label = "unknown"] = line.split("#").map((part) => part.trim());
-    return { url, label };
-  });
+interface Expected { usesQgds: boolean; codebases: string[] }
+
+// Throws on a missing label or one the check does not recognise.
+function expectedFor(labelText: string): Expected {
+  const labels = labelText.split(",").map((l) => l.trim().toLowerCase()).filter(Boolean);
+  if (labels.length === 0) throw new Error("A seed has no label. Add one, or remove the seed if the answer is not known.");
+  const unrecognised = labels.filter((l) => !(l in codebaseByLabel) && l !== "unclear" && l !== "none");
+  if (unrecognised.length > 0) throw new Error(`Unrecognised seed label "${unrecognised.join(", ")}".`);
+  if (labels.includes("none")) {
+    if (labels.length > 1) throw new Error(`"none" cannot be combined with other labels.`);
+    return { usesQgds: false, codebases: [] };
+  }
+  const codebases = codebaseOrder.filter((c) => labels.some((l) => codebaseByLabel[l] === c));
+  if (labels.includes("unclear") && codebases.length > 0) throw new Error(`"unclear" cannot be combined with a codebase.`);
+  return { usesQgds: true, codebases };
+}
+
+function readSeeds() {
+  return readFileSync("seeds.txt", "utf8")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => /^https?:\/\//.test(line))
+    .map((line) => {
+      const [url, label = ""] = line.split("#").map((part) => part.trim());
+      return { url, label, expected: expectedFor(label) };
+    });
+}
+
+let seeds: ReturnType<typeof readSeeds>;
+try {
+  seeds = readSeeds();
+} catch (err) {
+  console.error(`seeds.txt: ${(err as Error).message}`);
+  process.exit(1);
+}
 
 const describe = (r: SiteResult) =>
   r.status !== "ok" ? `${r.status} (${r.failure_type})` : r.uses_qgds ? r.codebases.join(", ") || "QGDS, codebase unclear" : "none";
 
 const browser = await chromium.launch();
-let matched = 0, mismatched = 0, unlabelled = 0;
+let matched = 0, mismatched = 0;
 try {
-  for (const [i, { url, label }] of seeds.entries()) {
+  for (const [i, { url, label, expected }] of seeds.entries()) {
     if (i > 0) await new Promise((resolve) => setTimeout(resolve, DELAY_BETWEEN_SITES_MS));
     const result = await checkSite(browser, url);
-    const expected = expectedByLabel[label] ?? null;
-    const actual = result.status === "ok" ? result.codebases : null;
+    const ok = result.status === "ok";
     let verdict: string;
-    if (expected === null) { verdict = "unlabelled"; unlabelled++; }
-    else if (actual !== null && actual.join() === expected.join()) { verdict = "match"; matched++; }
+    if (ok && result.uses_qgds === expected.usesQgds && result.codebases.join() === expected.codebases.join()) { verdict = "match"; matched++; }
     else { verdict = "MISMATCH"; mismatched++; }
     console.log(`${verdict.padEnd(10)} ${new URL(url).host.padEnd(40)} expected ${label.padEnd(15)} got ${describe(result)}  [${result.signals.join(" ")}] ${result.duration_ms}ms`);
   }
 } finally {
   await browser.close();
 }
-console.log(`${matched} matched, ${mismatched} mismatched, ${unlabelled} unlabelled.`);
+console.log(`${matched} matched, ${mismatched} mismatched.`);
 if (mismatched > 0) process.exit(1);

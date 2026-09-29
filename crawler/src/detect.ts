@@ -1,8 +1,9 @@
 // QGDS detection rules. Pure functions, no network, so they can be unit tested.
 //
-// Thresholds were set from rendered seed sites, with a wide margin between sites
-// that use a codebase and sites that do not. Re-run `npm run crawler:seeds` after
-// changing any rule.
+// Codebase thresholds were set from rendered seed sites, with a wide margin between
+// sites that use a codebase and sites that do not. The style fingerprint has a narrow
+// margin, so treat it as provisional. Re-run `npm run crawler:seeds` after changing
+// any rule.
 
 export type Codebase = "bootstrap" | "web_components" | "qh_vanilla";
 
@@ -19,6 +20,19 @@ export interface PageSignals {
   };
   // qgds-* custom elements in the DOM that are registered with customElements.
   definedQgdsElements: number;
+  // Computed styles of common elements. Null when the page has no such element.
+  style: PageStyle;
+}
+
+export interface PageStyle {
+  // First font family on body.
+  bodyFont: string | null;
+  // First h1.
+  heading: { sizePx: number; weight: number } | null;
+  // Most common style among visible text inputs.
+  formField: { radiusPx: number; borderPx: number; heightPx: number } | null;
+  // Most common style among visible links in the main content.
+  link: { underline: boolean; thicknessPx: number | null } | null;
 }
 
 export interface Detection {
@@ -26,6 +40,21 @@ export interface Detection {
   codebases: Codebase[];
   // Identifiers of matched rules, stored for auditing.
   signals: string[];
+}
+
+// Style features that together suggest QGDS styling on a site with its own codebase.
+// Values come from sites using the QGDS codebases. Noto Sans alone is not enough,
+// because it is the Queensland Government brand font.
+const between = (v: number, min: number, max: number) => v >= min && v <= max;
+export const styleFeatures: { id: string; test: (s: PageStyle) => boolean }[] = [
+  { id: "style:noto-sans", test: (s) => /^noto sans$/i.test(s.bodyFont ?? "") },
+  { id: "style:qgds-form-field", test: (s) => s.formField !== null && s.formField.radiusPx === 4 && s.formField.borderPx === 2 && between(s.formField.heightPx, 44, 56) },
+  { id: "style:qgds-link-underline", test: (s) => s.link !== null && s.link.underline && s.link.thicknessPx !== null && between(s.link.thicknessPx, 0.25, 1) },
+  { id: "style:qgds-heading", test: (s) => s.heading !== null && s.heading.weight >= 600 && between(s.heading.sizePx, 32, 40) },
+];
+
+function styleMatches(style: PageStyle): string[] {
+  return styleFeatures.filter((f) => f.test(style)).map((f) => f.id);
 }
 
 interface Rule {
@@ -50,6 +79,15 @@ export const rules: Rule[] = [
 
   // Weaker evidence of QGDS, such as design tokens, without a recognisable codebase.
   { id: "css:qgds-tokens", codebase: null, test: (s) => s.css.qgdsCustomProperties >= 50 },
+  // QGDS styling rebuilt in a site's own code: Noto Sans plus at least one QGDS-specific style.
+  {
+    id: "style:qgds-fingerprint",
+    codebase: null,
+    test: (s) => {
+      const matched = styleMatches(s.style);
+      return matched.includes("style:noto-sans") && matched.length >= 2;
+    },
+  },
 ];
 
 const codebaseOrder: Codebase[] = ["bootstrap", "web_components", "qh_vanilla"];
@@ -60,7 +98,8 @@ export function detect(signals: PageSignals): Detection {
   return {
     usesQgds: matched.length > 0,
     codebases: codebaseOrder.filter((c) => found.has(c)),
-    signals: matched.map((r) => r.id),
+    // Individual style features are recorded for auditing but do not count on their own.
+    signals: [...matched.map((r) => r.id), ...styleMatches(signals.style)],
   };
 }
 
@@ -83,6 +122,8 @@ export function addCss(a: PageSignals["css"], b: PageSignals["css"]): PageSignal
     qgdsCustomProperties: a.qgdsCustomProperties + b.qgdsCustomProperties,
   };
 }
+
+export const emptyStyle = (): PageStyle => ({ bodyFont: null, heading: null, formField: null, link: null });
 
 export const emptyCss = (): PageSignals["css"] => ({
   qldBemSelectors: 0,

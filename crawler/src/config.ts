@@ -9,3 +9,5 @@ export const SETTLE_MS = 4_000;
 export const DELAY_BETWEEN_SITES_MS = 1_500;
 // Resource types not needed for detection. Blocking them reduces load on sites.
 export const BLOCKED_RESOURCE_TYPES = new Set(["image", "media", "font"]);
+// Fixed desktop viewport, because heading sizes and layout change with width.
+export const VIEWPORT = { width: 1280, height: 900 };

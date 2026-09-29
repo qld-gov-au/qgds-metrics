@@ -1,13 +1,18 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { classifyError } from "../src/check-site.ts";
-import { countCss, detect, emptyCss, type PageSignals } from "../src/detect.ts";
+import { countCss, detect, emptyCss, emptyStyle, type PageSignals, type PageStyle } from "../src/detect.ts";
 
-const page = (overrides: Omit<Partial<PageSignals>, "css"> & { css?: Partial<PageSignals["css"]> } = {}): PageSignals => ({
+const page = (
+  overrides: Omit<Partial<PageSignals>, "css" | "style"> & { css?: Partial<PageSignals["css"]>; style?: Partial<PageStyle> } = {},
+): PageSignals => ({
   assetPaths: overrides.assetPaths ?? [],
   css: { ...emptyCss(), ...overrides.css },
   definedQgdsElements: overrides.definedQgdsElements ?? 0,
+  style: { ...emptyStyle(), ...overrides.style },
 });
+
+const qgdsFormField = { radiusPx: 4, borderPx: 2, heightPx: 48 };
 
 test("no signals means QGDS not detected", () => {
   assert.deepEqual(detect(page()), { usesQgds: false, codebases: [], signals: [] });
@@ -64,6 +69,50 @@ test("Tokens alone mean QGDS with an unclear codebase", () => {
   assert.equal(d.usesQgds, true);
   assert.deepEqual(d.codebases, []);
   assert.deepEqual(d.signals, ["css:qgds-tokens"]);
+});
+
+test("Style fingerprint: Noto Sans plus a QGDS form field means QGDS, codebase unclear", () => {
+  const d = detect(page({ style: { bodyFont: "Noto Sans", formField: qgdsFormField } }));
+  assert.equal(d.usesQgds, true);
+  assert.deepEqual(d.codebases, []);
+  assert.deepEqual(d.signals, ["style:qgds-fingerprint", "style:noto-sans", "style:qgds-form-field"]);
+});
+
+test("Style fingerprint: Noto Sans plus QGDS heading or link underline also counts", () => {
+  assert.equal(detect(page({ style: { bodyFont: "Noto Sans", heading: { sizePx: 40, weight: 600 } } })).usesQgds, true);
+  assert.equal(detect(page({ style: { bodyFont: "Noto Sans", link: { underline: true, thicknessPx: 0.5 } } })).usesQgds, true);
+});
+
+test("Style fingerprint: Noto Sans alone does not count", () => {
+  const d = detect(page({ style: { bodyFont: "Noto Sans" } }));
+  assert.equal(d.usesQgds, false);
+  assert.deepEqual(d.signals, ["style:noto-sans"]);
+});
+
+test("Style fingerprint: QGDS styles without Noto Sans do not count", () => {
+  const style = { bodyFont: "Example Sans", formField: qgdsFormField, heading: { sizePx: 40, weight: 600 } };
+  assert.equal(detect(page({ style })).usesQgds, false);
+});
+
+test("Style fingerprint: near misses do not count", () => {
+  const nearMisses: Partial<PageStyle>[] = [
+    { formField: { radiusPx: 4, borderPx: 1, heightPx: 48 } },
+    { formField: { radiusPx: 0, borderPx: 2, heightPx: 48 } },
+    { formField: { radiusPx: 4, borderPx: 2, heightPx: 36 } },
+    { heading: { sizePx: 40, weight: 400 } },
+    { heading: { sizePx: 64, weight: 600 } },
+    { link: { underline: false, thicknessPx: 0.5 } },
+    { link: { underline: true, thicknessPx: null } },
+  ];
+  for (const style of nearMisses) {
+    assert.equal(detect(page({ style: { bodyFont: "Noto Sans", ...style } })).usesQgds, false, JSON.stringify(style));
+  }
+});
+
+test("Style features on a codebase site are recorded but do not change the codebase", () => {
+  const d = detect(page({ assetPaths: ["site-a.example/qld.bootstrap.css"], style: { bodyFont: "Noto Sans", formField: qgdsFormField } }));
+  assert.deepEqual(d.codebases, ["bootstrap"]);
+  assert.ok(d.signals.includes("style:qgds-fingerprint"));
 });
 
 test("countCss counts selectors and declarations, not uses", () => {
