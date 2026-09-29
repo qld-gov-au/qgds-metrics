@@ -1,0 +1,28 @@
+{
+  "name": "qgds-metrics",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Collects metrics about the Queensland Government Design System and builds a dashboard.",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "check": "npm run check:no-data && npm run typecheck && npm run test:contract",
+    "check:no-data": "node scripts/check-no-data.ts",
+    "typecheck": "tsc",
+    "test:contract": "node scripts/check-contract.ts",
+    "data:pull": "node scripts/data-sync.ts pull",
+    "data:push": "node scripts/data-sync.ts push"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.117.2"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
+    "@types/node": "^24.19.0",
+    "ajv": "^8.20.0",
+    "ajv-formats": "^3.0.1",
+    "typescript": "^7.0.2"
+  }
+}
