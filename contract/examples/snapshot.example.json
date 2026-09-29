@@ -1,0 +1,94 @@
+{
+  "schema_version": "1.0",
+  "generated_at": "2026-01-02T00:10:00Z",
+  "web": {
+    "run": {
+      "id": "00000000-0000-4000-8000-000000000002",
+      "started_at": "2026-01-02T00:00:00Z",
+      "finished_at": "2026-01-02T00:05:00Z"
+    },
+    "totals": {
+      "sites_scanned": 3,
+      "sites_checked": 2,
+      "sites_failed": 1,
+      "sites_using_qgds": 1,
+      "by_codebase": { "bootstrap": 1, "web_components": 0, "qh_vanilla": 0, "unclear": 0 }
+    },
+    "sites": [
+      {
+        "url": "https://site-a.example",
+        "organisation": "example-agency",
+        "status": "ok",
+        "failure_type": null,
+        "uses_qgds": true,
+        "codebases": ["bootstrap"]
+      },
+      {
+        "url": "https://site-b.example",
+        "organisation": "example-agency",
+        "status": "ok",
+        "failure_type": null,
+        "uses_qgds": false,
+        "codebases": []
+      },
+      {
+        "url": "https://site-c.example",
+        "organisation": null,
+        "status": "failed",
+        "failure_type": "timeout",
+        "uses_qgds": null,
+        "codebases": []
+      }
+    ],
+    "history": [
+      {
+        "run_id": "00000000-0000-4000-8000-000000000001",
+        "finished_at": "2025-12-26T00:05:00Z",
+        "totals": {
+          "sites_scanned": 3,
+          "sites_checked": 3,
+          "sites_failed": 0,
+          "sites_using_qgds": 1,
+          "by_codebase": { "bootstrap": 1, "web_components": 0, "qh_vanilla": 0, "unclear": 0 }
+        }
+      },
+      {
+        "run_id": "00000000-0000-4000-8000-000000000002",
+        "finished_at": "2026-01-02T00:05:00Z",
+        "totals": {
+          "sites_scanned": 3,
+          "sites_checked": 2,
+          "sites_failed": 1,
+          "sites_using_qgds": 1,
+          "by_codebase": { "bootstrap": 1, "web_components": 0, "qh_vanilla": 0, "unclear": 0 }
+        }
+      }
+    ]
+  },
+  "figma": {
+    "run": {
+      "id": "00000000-0000-4000-8000-000000000003",
+      "started_at": "2026-01-02T00:00:00Z",
+      "finished_at": "2026-01-02T00:01:00Z"
+    },
+    "components": [
+      { "key": "component-key-1", "name": "Example button", "group": "Example button set", "usages": 10, "teams_using": 2, "files_using": 4 }
+    ],
+    "styles": [
+      { "key": "style-key-1", "name": "Example colour", "group": "FILL", "usages": 5, "teams_using": 1, "files_using": 2 }
+    ],
+    "variables": [],
+    "component_actions": {
+      "period_start": "2025-12-22",
+      "period_end": "2025-12-29",
+      "totals": { "insertions": 20, "detachments": 2, "detach_rate": 0.1 },
+      "by_week": [
+        { "week": "2025-12-22", "insertions": 12, "detachments": 2, "detach_rate": 0.1667 },
+        { "week": "2025-12-29", "insertions": 8, "detachments": 0, "detach_rate": 0 }
+      ],
+      "by_component": [
+        { "key": "component-key-1", "name": "Example button", "group": "Example button set", "insertions": 20, "detachments": 2, "detach_rate": 0.1 }
+      ]
+    }
+  }
+}
