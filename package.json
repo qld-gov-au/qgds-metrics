@@ -8,15 +8,19 @@
     "node": ">=24"
   },
   "scripts": {
-    "check": "npm run check:no-data && npm run typecheck && npm run test:contract",
+    "check": "npm run check:no-data && npm run typecheck && npm test && npm run test:contract",
     "check:no-data": "node scripts/check-no-data.ts",
     "typecheck": "tsc",
+    "test": "node --test \"crawler/test/**/*.test.ts\"",
     "test:contract": "node scripts/check-contract.ts",
+    "crawler:seeds": "node crawler/src/check-seeds.ts",
     "data:pull": "node scripts/data-sync.ts pull",
     "data:push": "node scripts/data-sync.ts push"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.117.2"
+    "@supabase/supabase-js": "^2.117.2",
+    "playwright": "^1.63.0",
+    "robots-parser": "^3.0.1"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.8",
