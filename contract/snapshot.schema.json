@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/qld-gov-au/qgds-metrics/contract/snapshot.schema.json",
-  "title": "QGDS adoption snapshot",
+  "title": "QGDS metrics snapshot",
   "description": "Exported from Supabase by the build. The dashboard reads only this file.",
   "type": "object",
   "additionalProperties": false,

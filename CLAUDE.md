@@ -1,8 +1,8 @@
-# QGDS adoption dashboard
+# QGDS metrics dashboard
 
 ## Purpose
 
-This repository measures adoption of the Queensland Government Design System (QGDS) and produces a dashboard of the results. It is a working concept. It must be accurate and must not look broken, but it does not need to be complete or polished.
+This repository collects metrics about the Queensland Government Design System (QGDS) and produces a dashboard of the results. The first metrics cover adoption. Keep names general so the pipeline can carry other data and analytics later. It is a working concept. It must be accurate and must not look broken, but it does not need to be complete or polished.
 
 The pipeline has four stages:
 
@@ -24,7 +24,7 @@ This repository is **public**. Anything committed, including anything in git his
 The code is public. The data is private. Keep them separate:
 
 - **Never commit data.** `fixtures/`, `seeds.txt`, `.env` and any generated snapshot or build output must stay in `.gitignore`. A check script fails CI if any of them is tracked.
-- **Private storage.** Fixtures, seed lists and dashboard builds live in the private Supabase Storage bucket `adoption-data`. Use `npm run data:pull` before working and `npm run data:push` after changing fixtures.
+- **Private storage.** Fixtures, seed lists and dashboard builds live in the private Supabase Storage bucket `metrics-data`. Use `npm run data:pull` before working and `npm run data:push` after changing fixtures.
 - **No names in public places.** Never put agency names, team names, site URLs or results in code, tests, comments, commit messages, pull requests, issues, README examples or contract examples. Use obvious placeholders such as `example-agency` and `https://site-a.example`.
 - **Quiet logs.** Scripts running in Actions log counts, durations and error types only, for example "Crawled 42 sites, 3 failures (2 timeouts, 1 DNS)". Write site-level detail to Supabase, never to the log.
 - **No artifacts with data.** Do not use `actions/upload-artifact` for fixtures, snapshots or dashboard builds.
@@ -39,7 +39,7 @@ npm run data:pull
 npm run dashboard:dev
 ```
 
-The CI build uploads to `adoption-data/builds/<run-timestamp>/` in Supabase Storage, which team members can download from the Supabase dashboard.
+The CI build uploads to `metrics-data/builds/<run-timestamp>/` in Supabase Storage, which team members can download from the Supabase dashboard.
 
 ## Repository structure
 
@@ -82,7 +82,7 @@ The dashboard reads only the exported JSON snapshot. It never calls Supabase dir
 
 - Crawl only public pages. Never log in, submit forms or bypass access controls.
 - Respect robots.txt.
-- Identify the crawler with a clear user agent that includes a contact address, for example `QGDS-adoption-crawler/0.1 (+contact@example.qld.gov.au)`. Ask for the real contact address before the first live run.
+- Identify the crawler with a clear user agent that includes a contact address, for example `QGDS-metrics-crawler/0.1 (+contact@example.qld.gov.au)`. Ask for the real contact address before the first live run.
 - Limit to one request at a time per domain, with a delay between pages.
 - Set sensible timeouts and record failures as results rather than crashing the run.
 - Collect design system signals only. Do not store page content, form data, cookies or any personal information.

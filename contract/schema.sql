@@ -1,4 +1,4 @@
--- QGDS adoption data contract: database schema.
+-- QGDS metrics data contract: database schema.
 -- Shared by all tracks. Do not change without agreement. See contract/README.md.
 --
 -- Row level security is enabled on every table with no policies, so only the
