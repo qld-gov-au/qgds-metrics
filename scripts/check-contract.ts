@@ -5,6 +5,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { Ajv2020 } from "ajv/dist/2020.js";
 import addFormatsModule from "ajv-formats";
 import { PGlite } from "@electric-sql/pglite";
+import { describeSchema, diffSchemas } from "../db/describe-schema.ts";
 
 const addFormats = addFormatsModule as unknown as typeof addFormatsModule.default;
 const read = (path: string) => readFileSync(new URL(`../contract/${path}`, import.meta.url), "utf8");
@@ -100,28 +101,21 @@ await db.close();
 
 // Migrations must produce the same schema as the contract
 
-async function describeSchema(sql: string[]): Promise<string> {
+async function describeSql(statements: string[]) {
   const pg = new PGlite();
-  for (const statement of sql) await pg.exec(statement);
-  const parts = await Promise.all([
-    pg.query(`select table_name, column_name, data_type, is_nullable, column_default
-              from information_schema.columns where table_schema = 'public' order by 1, 2`),
-    pg.query(`select c.relname, pg_get_constraintdef(k.oid) as def from pg_constraint k
-              join pg_class c on c.oid = k.conrelid join pg_namespace n on n.oid = c.relnamespace
-              where n.nspname = 'public' order by 1, 2`),
-    pg.query(`select tablename, indexdef from pg_indexes where schemaname = 'public' order by 1, 2`),
-    pg.query(`select relname, relrowsecurity from pg_class c join pg_namespace n on n.oid = c.relnamespace
-              where n.nspname = 'public' and relkind = 'r' order by 1`),
-  ]);
+  for (const statement of statements) await pg.exec(statement);
+  const description = await describeSchema(async (text) => (await pg.query<Record<string, unknown>>(text)).rows);
   await pg.close();
-  return JSON.stringify(parts.map((p) => p.rows));
+  return description;
 }
 
 const migrationsDir = new URL("../db/migrations/", import.meta.url);
 const migrations = readdirSync(migrationsDir).filter((f) => f.endsWith(".sql")).sort()
   .map((f) => readFileSync(new URL(f, migrationsDir), "utf8"));
 expect("db/migrations exist", migrations.length > 0);
-expect("db/migrations produce the contract schema", (await describeSchema(migrations)) === (await describeSchema([read("schema.sql")])));
+const differences = diffSchemas(await describeSql([read("schema.sql")]), await describeSql(migrations), "migrations");
+for (const d of differences) console.error(`  ${d}`);
+expect("db/migrations produce the contract schema", differences.length === 0);
 
 if (failures > 0) {
   console.error(`Contract check failed: ${failures} failed, ${passes} passed.`);
