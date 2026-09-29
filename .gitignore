@@ -1,0 +1,6 @@
+.env
+seeds.txt
+fixtures/
+node_modules/
+dist/
+build/
