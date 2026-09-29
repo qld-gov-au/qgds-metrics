@@ -1,10 +1,11 @@
 // Checks the data contract: the example snapshot matches the JSON schema, and
 // schema.sql runs on Postgres and enforces its rules. Uses in-memory Postgres
 // (PGlite), so it needs no database or secrets.
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { Ajv2020 } from "ajv/dist/2020.js";
 import addFormatsModule from "ajv-formats";
 import { PGlite } from "@electric-sql/pglite";
+import { describeSchema, diffSchemas } from "../db/describe-schema.ts";
 
 const addFormats = addFormatsModule as unknown as typeof addFormatsModule.default;
 const read = (path: string) => readFileSync(new URL(`../contract/${path}`, import.meta.url), "utf8");
@@ -97,6 +98,24 @@ await rejects("duplicate component week", action, [figmaRun, "2025-12-22", 0]);
 await rejects("negative detachments", action, [figmaRun, "2025-12-29", -1]);
 
 await db.close();
+
+// Migrations must produce the same schema as the contract
+
+async function describeSql(statements: string[]) {
+  const pg = new PGlite();
+  for (const statement of statements) await pg.exec(statement);
+  const description = await describeSchema(async (text) => (await pg.query<Record<string, unknown>>(text)).rows);
+  await pg.close();
+  return description;
+}
+
+const migrationsDir = new URL("../db/migrations/", import.meta.url);
+const migrations = readdirSync(migrationsDir).filter((f) => f.endsWith(".sql")).sort()
+  .map((f) => readFileSync(new URL(f, migrationsDir), "utf8"));
+expect("db/migrations exist", migrations.length > 0);
+const differences = diffSchemas(await describeSql([read("schema.sql")]), await describeSql(migrations), "migrations");
+for (const d of differences) console.error(`  ${d}`);
+expect("db/migrations produce the contract schema", differences.length === 0);
 
 if (failures > 0) {
   console.error(`Contract check failed: ${failures} failed, ${passes} passed.`);
