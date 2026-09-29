@@ -1,7 +1,7 @@
 // Checks the data contract: the example snapshot matches the JSON schema, and
 // schema.sql runs on Postgres and enforces its rules. Uses in-memory Postgres
 // (PGlite), so it needs no database or secrets.
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { Ajv2020 } from "ajv/dist/2020.js";
 import addFormatsModule from "ajv-formats";
 import { PGlite } from "@electric-sql/pglite";
@@ -97,6 +97,31 @@ await rejects("duplicate component week", action, [figmaRun, "2025-12-22", 0]);
 await rejects("negative detachments", action, [figmaRun, "2025-12-29", -1]);
 
 await db.close();
+
+// Migrations must produce the same schema as the contract
+
+async function describeSchema(sql: string[]): Promise<string> {
+  const pg = new PGlite();
+  for (const statement of sql) await pg.exec(statement);
+  const parts = await Promise.all([
+    pg.query(`select table_name, column_name, data_type, is_nullable, column_default
+              from information_schema.columns where table_schema = 'public' order by 1, 2`),
+    pg.query(`select c.relname, pg_get_constraintdef(k.oid) as def from pg_constraint k
+              join pg_class c on c.oid = k.conrelid join pg_namespace n on n.oid = c.relnamespace
+              where n.nspname = 'public' order by 1, 2`),
+    pg.query(`select tablename, indexdef from pg_indexes where schemaname = 'public' order by 1, 2`),
+    pg.query(`select relname, relrowsecurity from pg_class c join pg_namespace n on n.oid = c.relnamespace
+              where n.nspname = 'public' and relkind = 'r' order by 1`),
+  ]);
+  await pg.close();
+  return JSON.stringify(parts.map((p) => p.rows));
+}
+
+const migrationsDir = new URL("../db/migrations/", import.meta.url);
+const migrations = readdirSync(migrationsDir).filter((f) => f.endsWith(".sql")).sort()
+  .map((f) => readFileSync(new URL(f, migrationsDir), "utf8"));
+expect("db/migrations exist", migrations.length > 0);
+expect("db/migrations produce the contract schema", (await describeSchema(migrations)) === (await describeSchema([read("schema.sql")])));
 
 if (failures > 0) {
   console.error(`Contract check failed: ${failures} failed, ${passes} passed.`);

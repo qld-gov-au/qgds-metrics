@@ -14,6 +14,8 @@
     "test": "node --test \"crawler/test/**/*.test.ts\"",
     "test:contract": "node scripts/check-contract.ts",
     "crawler:seeds": "node crawler/src/check-seeds.ts",
+    "crawl": "node crawler/src/crawl.ts",
+    "sites:import": "node db/import-sites.ts",
     "data:pull": "node scripts/data-sync.ts pull",
     "data:push": "node scripts/data-sync.ts push"
   },
@@ -27,6 +29,7 @@
     "@types/node": "^24.19.0",
     "ajv": "^8.20.0",
     "ajv-formats": "^3.0.1",
+    "postgres": "^3.4.9",
     "typescript": "^7.0.2"
   }
 }

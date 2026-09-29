@@ -7,8 +7,8 @@
 // Neither direction deletes files. Logs counts only, never file names.
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { loadEnv, requireEnv } from "./env.ts";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { serviceClient } from "./supabase.ts";
 
 const BUCKET = "metrics-data";
 // Local paths synced with the bucket. Remote paths are the same.
@@ -105,10 +105,7 @@ if (command !== "pull" && command !== "push") {
   process.exit(1);
 }
 
-loadEnv();
-const supabase = createClient(requireEnv("SUPABASE_URL"), requireEnv("SUPABASE_SERVICE_ROLE_KEY"), {
-  auth: { persistSession: false },
-});
+const supabase = serviceClient();
 
 try {
   if (command === "pull") await pull(supabase, flags.includes("--force"));
