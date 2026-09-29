@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>QGDS metrics</title>
+  <link rel="stylesheet" href="vendor/qgds/css/qgds-web-components.css">
+  <link rel="stylesheet" href="styles.css">
+  <script type="module" src="vendor/qgds/js/qgds-web-components.js"></script>
+  <script src="vendor/chart.umd.min.js" defer></script>
+  <script src="app.js" defer></script>
+</head>
+<body class="qgds qgds-palette-default">
+  <qgds-header site-name="QGDS metrics" site-url="./" hide-mobile-bottom-row></qgds-header>
+
+  <main id="main" class="qgds-container">
+    <section class="section intro">
+      <h1>QGDS metrics</h1>
+      <p class="lead">Observed use of the Queensland Government Design System on public websites and in the Figma library. This dashboard is a working concept.</p>
+      <p id="generated" class="meta"></p>
+    </section>
+
+    <section class="section" aria-labelledby="web-heading">
+      <h2 id="web-heading">Websites</h2>
+      <div id="web"><p>Loading.</p></div>
+    </section>
+
+    <section class="section" aria-labelledby="figma-heading">
+      <h2 id="figma-heading">Figma library</h2>
+      <div id="figma"><p>Loading.</p></div>
+    </section>
+  </main>
+
+  <noscript>
+    <div class="qgds-container"><p>This dashboard needs JavaScript to show its data.</p></div>
+  </noscript>
+</body>
+</html>

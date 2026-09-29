@@ -12,5 +12,5 @@
     "skipLibCheck": true,
     "resolveJsonModule": true
   },
-  "include": ["scripts", "crawler", "figma", "db"]
+  "include": ["scripts", "crawler", "figma", "db", "dashboard/*.ts"]
 }

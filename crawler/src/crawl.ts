@@ -1,7 +1,8 @@
 // Crawls every active site and stores one web run in Supabase.
 //
-//   npm run crawl                  all active sites
-//   npm run crawl -- --limit 3     first 3 sites, for testing
+//   npm run crawl                  all active sites, stored as a run
+//   npm run crawl -- --limit 3     first 3 sites, for testing. Not stored, because a
+//                                  partial crawl would distort totals and trends.
 //
 // Logs counts, durations and error types only. Site-level detail goes to Supabase.
 import { execFileSync } from "node:child_process";
@@ -58,7 +59,10 @@ if (sites.length === 0) {
   process.exit(1);
 }
 
-const { data: run, error: runError } = await supabase
+const store = limit === null;
+if (!store) console.log(`Test crawl of ${sites.length} site(s). Results are not stored.`);
+
+const { data: run, error: runError } = !store ? { data: null, error: null } : await supabase
   .from("runs")
   .insert({ source: "web", user_agent: USER_AGENT, collector_version: collectorVersion() })
   .select("id")
@@ -71,6 +75,7 @@ if (runError) {
 // Mark the run failed if the process is stopped part way.
 for (const signal of ["SIGINT", "SIGTERM"] as const) {
   process.once(signal, async () => {
+    if (!run) process.exit(1);
     await finishRun(run.id, "failed");
     console.error(`Stopped by ${signal}. Run marked failed.`);
     process.exit(1);
@@ -88,15 +93,17 @@ try {
     if (result.uses_qgds) tally.usingQgds++;
     if (result.failure_type) failureTypes.set(result.failure_type, (failureTypes.get(result.failure_type) ?? 0) + 1);
 
-    const { error } = await supabase.from("site_results").insert({ run_id: run.id, site_id: site.id, ...result });
-    if (error) tally.writeErrors++;
+    if (run) {
+      const { error } = await supabase.from("site_results").insert({ run_id: run.id, site_id: site.id, ...result });
+      if (error) tally.writeErrors++;
+    }
   }
 } finally {
   await browser.close();
 }
 
 const status = tally.writeErrors === 0 ? "succeeded" : "failed";
-await finishRun(run.id, status);
+if (run) await finishRun(run.id, status);
 
 const seconds = Math.round((Date.now() - started) / 1000);
 const failures = [...failureTypes].map(([type, n]) => `${n} ${type}`).join(", ");
@@ -108,4 +115,4 @@ if (tally.writeErrors > 0) {
   console.error(`${tally.writeErrors} result(s) could not be saved. Run marked failed.`);
   process.exit(1);
 }
-console.log(`Run ${status}.`);
+if (run) console.log(`Run ${status}.`);
