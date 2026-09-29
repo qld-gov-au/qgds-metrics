@@ -1,4 +1,4 @@
-// Renders the dashboard from data/snapshot.json. Reads nothing else.
+// Renders the dashboard from the snapshot in data/snapshot.js. Reads nothing else.
 // Builds DOM with textContent only, so values from the snapshot are never parsed as HTML.
 "use strict";
 
@@ -273,13 +273,10 @@ function renderFigma(figma) {
   );
 }
 
-async function main() {
-  let snapshot;
-  try {
-    const response = await fetch("data/snapshot.json", { cache: "no-store" });
-    if (!response.ok) throw new Error(String(response.status));
-    snapshot = await response.json();
-  } catch {
+function main() {
+  // Set by data/snapshot.js, which loads before this script.
+  const snapshot = window.QGDS_METRICS_SNAPSHOT;
+  if (!snapshot || typeof snapshot !== "object") {
     for (const id of ["web", "figma"]) {
       document.getElementById(id).replaceChildren(alert("error", "Data could not be loaded", "The snapshot file is missing or unreadable. Run the export, then rebuild the dashboard."));
     }

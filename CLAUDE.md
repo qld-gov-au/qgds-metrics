@@ -32,14 +32,16 @@ The code is public. The data is private. Keep them separate:
 
 ## Previewing the dashboard
 
-Preview locally:
+Preview locally with the latest data from Supabase:
 
 ```
-npm run data:pull
+npm run export
 npm run dashboard:dev
 ```
 
-The CI build uploads to `metrics-data/builds/<run-timestamp>/` in Supabase Storage, which team members can download from the Supabase dashboard.
+To preview with placeholder data instead, run `npm run dashboard:build -- --snapshot contract/examples/snapshot.example.json`.
+
+The Build dashboard workflow (run manually from the Actions tab) uploads `metrics-data/builds/<run-timestamp>/qgds-metrics-dashboard.zip` to Supabase Storage. Team members download it from the Supabase dashboard, unzip it and open `index.html`. It works without a server.
 
 ## Repository structure
 

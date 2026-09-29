@@ -18,6 +18,7 @@
     "export": "node db/export-snapshot.ts",
     "dashboard:build": "node dashboard/build.ts",
     "dashboard:dev": "npm run dashboard:build && node dashboard/serve.ts",
+    "dashboard:upload": "node db/upload-build.ts",
     "sites:import": "node db/import-sites.ts",
     "db:verify": "node db/verify.ts",
     "data:pull": "node scripts/data-sync.ts pull",
@@ -35,6 +36,7 @@
     "@types/node": "^24.19.0",
     "ajv": "^8.20.0",
     "ajv-formats": "^3.0.1",
+    "esbuild": "^0.28.2",
     "postgres": "^3.4.9",
     "typescript": "^7.0.2"
   }
