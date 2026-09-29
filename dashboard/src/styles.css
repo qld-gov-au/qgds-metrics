@@ -1,0 +1,69 @@
+/* Layout only. Colours, type and radii come from QGDS tokens. */
+
+body {
+  margin: 0;
+  background: var(--qgds-color-background, #fff);
+  color: var(--qgds-color-text-default);
+  font-family: var(--qgds-font-family);
+  line-height: var(--qgds-line-height-default);
+}
+
+main { padding-block-end: 4rem; }
+
+/* qgds-container sets the side padding. Sections only add vertical rhythm. */
+.section { margin-block-start: 3.5rem; }
+.section.intro { margin-block-start: 2.5rem; }
+.section > h2 { margin-block-end: 0.5rem; }
+.lead { font-size: var(--qgds-font-size-md); max-inline-size: 48rem; }
+.meta { color: var(--qgds-color-text-lighter); font-size: var(--qgds-font-size-xs); }
+
+/* Stat tiles */
+.stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: var(--qgds-grid-gutter, 1.5rem);
+  margin-block: 1.5rem 2.5rem;
+  padding: 0;
+  list-style: none;
+}
+.stat {
+  border: 1px solid var(--qgds-color-border-alt, var(--qgds-color-border));
+  border-radius: var(--qgds-border-radius-xs);
+  padding: 1.25rem 1.5rem;
+  background: var(--qgds-color-background);
+}
+.stat-label { margin: 0; font-size: var(--qgds-font-size-xs); color: var(--qgds-color-text-lighter); }
+.stat-value {
+  margin: 0.25rem 0 0;
+  font-size: var(--qgds-font-size-xxl);
+  font-weight: 600;
+  line-height: var(--qgds-line-height-heading);
+  color: var(--qgds-color-text-heading);
+  font-variant-numeric: tabular-nums;
+}
+.stat-detail { margin: 0.25rem 0 0; font-size: var(--qgds-font-size-xs); }
+
+/* Charts */
+figure.chart { margin: 0 0 2.5rem; max-inline-size: 56rem; }
+figure.chart figcaption { margin-block-end: 0.75rem; }
+figure.chart figcaption strong { display: block; font-size: var(--qgds-font-size-md); color: var(--qgds-color-text-heading); }
+.chart-box { position: relative; inline-size: 100%; }
+.chart-note { font-size: var(--qgds-font-size-xs); color: var(--qgds-color-text-lighter); margin-block: 0.5rem 1rem; }
+
+/* Tables */
+.table-wrap { overflow-x: auto; }
+table.data { border-collapse: collapse; inline-size: 100%; font-variant-numeric: tabular-nums; }
+table.data th, table.data td { text-align: start; padding: 0.5rem 0.75rem; border-block-end: 1px solid var(--qgds-color-border-alt, var(--qgds-color-border)); vertical-align: top; }
+table.data th[scope="col"] { font-weight: 600; }
+table.data td.num, table.data th.num { text-align: end; }
+table.data td.url { overflow-wrap: anywhere; }
+
+.empty { margin-block: 1rem 2rem; }
+h3 { margin-block-start: 2.5rem; }
+
+.visually-hidden {
+  position: absolute !important;
+  inline-size: 1px; block-size: 1px;
+  margin: -1px; padding: 0; overflow: hidden;
+  clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}

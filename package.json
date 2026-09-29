@@ -11,17 +11,22 @@
     "check": "npm run check:no-data && npm run typecheck && npm test && npm run test:contract",
     "check:no-data": "node scripts/check-no-data.ts",
     "typecheck": "tsc",
-    "test": "node --test \"crawler/test/**/*.test.ts\"",
+    "test": "node --test \"crawler/test/**/*.test.ts\" \"db/test/**/*.test.ts\"",
     "test:contract": "node scripts/check-contract.ts",
     "crawler:seeds": "node crawler/src/check-seeds.ts",
     "crawl": "node crawler/src/crawl.ts",
+    "export": "node db/export-snapshot.ts",
+    "dashboard:build": "node dashboard/build.ts",
+    "dashboard:dev": "npm run dashboard:build && node dashboard/serve.ts",
     "sites:import": "node db/import-sites.ts",
     "db:verify": "node db/verify.ts",
     "data:pull": "node scripts/data-sync.ts pull",
     "data:push": "node scripts/data-sync.ts push"
   },
   "dependencies": {
+    "@qld-gov-au/qgds-web-components": "^0.4.0",
     "@supabase/supabase-js": "^2.117.2",
+    "chart.js": "^4.5.1",
     "playwright": "^1.63.0",
     "robots-parser": "^3.0.1"
   },
