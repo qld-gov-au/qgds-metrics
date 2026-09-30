@@ -1,0 +1,72 @@
+name: Build dashboard
+
+# Exports the snapshot from Supabase, builds the dashboard and uploads it to the
+# private metrics-data bucket. Crawls all active sites first on the monthly schedule,
+# or when the crawl box is ticked on a manual run.
+#
+# This repository is public. Logs show counts, durations and error types only,
+# and nothing is uploaded to GitHub. Do not add actions/upload-artifact or Pages.
+
+on:
+  # 17:00 UTC on the 1st is 3 am on the 2nd in Brisbane, a quiet time for the sites crawled.
+  schedule:
+    - cron: "0 17 1 * *"
+  workflow_dispatch:
+    inputs:
+      crawl:
+        description: Crawl all active sites before building
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-dashboard
+  cancel-in-progress: false
+
+jobs:
+  build:
+    # Never run on forks, which have no access to the data.
+    if: github.repository == 'qld-gov-au/qgds-metrics'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      # Install scripts are off, so no dependency code runs before the secrets are in use.
+      - run: npm ci --ignore-scripts
+
+      - run: npm run check:no-data
+
+      - name: Install Chromium
+        if: github.event_name == 'schedule' || inputs.crawl
+        run: npx playwright install --with-deps chromium
+
+      - name: Crawl
+        if: github.event_name == 'schedule' || inputs.crawl
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: npm run crawl
+
+      - name: Export snapshot
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: npm run export
+
+      - run: npm run dashboard:build
+
+      - name: Upload to private storage
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: npm run dashboard:upload
