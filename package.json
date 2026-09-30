@@ -15,6 +15,7 @@
     "test:contract": "node scripts/check-contract.ts",
     "crawler:seeds": "node crawler/src/check-seeds.ts",
     "crawl": "node crawler/src/crawl.ts",
+    "crawl:status": "node crawler/src/status.ts",
     "figma": "node figma/src/collect.ts",
     "monthly": "node scripts/monthly.ts",
     "export": "node db/export-snapshot.ts",

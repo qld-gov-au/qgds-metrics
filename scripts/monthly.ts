@@ -1,6 +1,7 @@
 // The monthly routine: crawl from this machine, then build and upload the dashboard in GitHub Actions.
 //
-//   npm run monthly
+//   npm run monthly               crawl all sites, then build
+//   npm run monthly -- --resume   finish an interrupted crawl, then build
 //
 // Run it from a work network. Many sites block cloud data centres, which is why the
 // crawl runs here and not in Actions. Needs the GitHub CLI (gh), signed in.
@@ -37,10 +38,13 @@ try {
 }
 
 // 2. Crawl.
-console.log("Step 1 of 2: crawling all active sites. This takes about 10 seconds per site.\n");
-const crawl = spawnSync(process.execPath, ["crawler/src/crawl.ts"], { stdio: "inherit" });
+const resume = process.argv.includes("--resume");
+console.log(resume
+  ? "Step 1 of 2: finishing the interrupted crawl.\n"
+  : "Step 1 of 2: crawling all active sites. This takes about 12 seconds per site. Progress is shown every 25 sites.\n");
+const crawl = spawnSync(process.execPath, ["crawler/src/crawl.ts", ...(resume ? ["--resume"] : [])], { stdio: "inherit" });
 if (crawl.status !== 0) {
-  stop("The crawl did not succeed, so no build was started. Nothing on the dashboard has changed.");
+  stop("The crawl did not succeed, so no build was started. Nothing on the dashboard has changed.\nSites already checked are saved. Run npm run monthly -- --resume to finish the crawl and build.");
 }
 
 // 3. Start the build and wait for it.

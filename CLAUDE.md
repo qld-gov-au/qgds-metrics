@@ -58,6 +58,7 @@ Figma headline totals leave out the QGDS library file, found by `FIGMA_LIBRARY_F
 
 - **Crawls run locally, not in Actions.** Many sites return 403 to cloud data centres, including GitHub's runners. Do not add crawling back to the workflow unless the sites allow the crawler through. Never work around a block.
 - **Blocked crawls are discarded.** If more than 25% of sites fail to load, the run is marked failed and never exported.
+- **Interrupted crawls can be finished.** Saves are retried through short network drops. If a crawl still fails, `npm run monthly -- --resume` checks only the sites without a result, then builds. `npm run crawl:status` shows progress from a second terminal.
 - **The workflow also runs on its own** at 3 am Brisbane time on the 2nd of each month, rebuilding from the latest data.
 - **The dashboard flags stale data.** If the latest crawl is more than 35 days old, it shows a warning.
 
