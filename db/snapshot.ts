@@ -36,6 +36,12 @@ export interface FigmaActionRow {
   detachments: number;
 }
 
+export interface FigmaTotalsRow {
+  asset_type: "component" | "style" | "variable";
+  usages_all_files: number;
+  usages_library_file: number;
+}
+
 export interface SnapshotInput {
   generatedAt: string;
   // Succeeded web runs, any order, with every result from those runs.
@@ -45,6 +51,8 @@ export interface SnapshotInput {
   figmaRun: RunRow | null;
   figmaUsage: FigmaUsageRow[];
   figmaActions: FigmaActionRow[];
+  // Empty for Figma runs collected before snapshot 1.1.
+  figmaTotals: FigmaTotalsRow[];
 }
 
 // Detachments divided by insertions, rounded to 4 places. Null when there were no insertions.
@@ -117,7 +125,18 @@ function buildComponentActions(rows: FigmaActionRow[]) {
   };
 }
 
-function buildFigma(figmaRun: RunRow | null, usage: FigmaUsageRow[], actions: FigmaActionRow[]) {
+// Usage totals without the library file. Null unless all three asset types were collected.
+function buildFigmaTotals(rows: FigmaTotalsRow[]) {
+  const outside = (type: FigmaTotalsRow["asset_type"]) => {
+    const row = rows.find((r) => r.asset_type === type);
+    return row ? row.usages_all_files - row.usages_library_file : null;
+  };
+  const [component_instances, style_uses, variable_uses] = [outside("component"), outside("style"), outside("variable")];
+  if (component_instances === null || style_uses === null || variable_uses === null) return null;
+  return { excludes: "library_file" as const, component_instances, style_uses, variable_uses };
+}
+
+function buildFigma(figmaRun: RunRow | null, usage: FigmaUsageRow[], actions: FigmaActionRow[], totals: FigmaTotalsRow[]) {
   if (!figmaRun) return null;
   const assets = (type: FigmaUsageRow["asset_type"]) =>
     usage
@@ -129,15 +148,16 @@ function buildFigma(figmaRun: RunRow | null, usage: FigmaUsageRow[], actions: Fi
     components: assets("component"),
     styles: assets("style"),
     variables: assets("variable"),
+    totals: buildFigmaTotals(totals),
     component_actions: buildComponentActions(actions),
   };
 }
 
 export function buildSnapshot(input: SnapshotInput) {
   return {
-    schema_version: "1.0" as const,
+    schema_version: "1.1" as const,
     generated_at: input.generatedAt,
     web: buildWeb(input.webRuns, input.webResults),
-    figma: buildFigma(input.figmaRun, input.figmaUsage, input.figmaActions),
+    figma: buildFigma(input.figmaRun, input.figmaUsage, input.figmaActions, input.figmaTotals),
   };
 }

@@ -5,51 +5,126 @@
   "description": "Exported from Supabase by the build. The dashboard reads only this file.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "generated_at", "web", "figma"],
+  "required": [
+    "schema_version",
+    "generated_at",
+    "web",
+    "figma"
+  ],
   "properties": {
-    "schema_version": { "const": "1.0" },
-    "generated_at": { "type": "string", "format": "date-time" },
+    "schema_version": {
+      "enum": [
+        "1.0",
+        "1.1"
+      ]
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
     "web": {
       "description": "Latest completed web run. Null when no web run has completed.",
-      "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/web" }]
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/$defs/web"
+        }
+      ]
     },
     "figma": {
       "description": "Latest completed Figma run. Null when no Figma run has completed.",
-      "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/figma" }]
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/$defs/figma"
+        }
+      ]
     }
   },
   "$defs": {
-    "count": { "type": "integer", "minimum": 0 },
-    "codebase": { "enum": ["bootstrap", "web_components", "qh_vanilla"] },
+    "count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "codebase": {
+      "enum": [
+        "bootstrap",
+        "web_components",
+        "qh_vanilla"
+      ]
+    },
     "run": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "started_at", "finished_at"],
+      "required": [
+        "id",
+        "started_at",
+        "finished_at"
+      ],
       "properties": {
-        "id": { "type": "string", "format": "uuid" },
-        "started_at": { "type": "string", "format": "date-time" },
-        "finished_at": { "type": "string", "format": "date-time" }
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "started_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "finished_at": {
+          "type": "string",
+          "format": "date-time"
+        }
       }
     },
     "web": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["run", "totals", "sites", "history"],
+      "required": [
+        "run",
+        "totals",
+        "sites",
+        "history"
+      ],
       "properties": {
-        "run": { "$ref": "#/$defs/run" },
-        "totals": { "$ref": "#/$defs/webTotals" },
-        "sites": { "type": "array", "items": { "$ref": "#/$defs/site" } },
+        "run": {
+          "$ref": "#/$defs/run"
+        },
+        "totals": {
+          "$ref": "#/$defs/webTotals"
+        },
+        "sites": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/site"
+          }
+        },
         "history": {
           "description": "Totals for each completed web run, oldest first, including the latest.",
           "type": "array",
           "items": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["run_id", "finished_at", "totals"],
+            "required": [
+              "run_id",
+              "finished_at",
+              "totals"
+            ],
             "properties": {
-              "run_id": { "type": "string", "format": "uuid" },
-              "finished_at": { "type": "string", "format": "date-time" },
-              "totals": { "$ref": "#/$defs/webTotals" }
+              "run_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "finished_at": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "totals": {
+                "$ref": "#/$defs/webTotals"
+              }
             }
           }
         }
@@ -58,22 +133,52 @@
     "webTotals": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["sites_scanned", "sites_checked", "sites_failed", "sites_using_qgds", "by_codebase"],
+      "required": [
+        "sites_scanned",
+        "sites_checked",
+        "sites_failed",
+        "sites_using_qgds",
+        "by_codebase"
+      ],
       "properties": {
-        "sites_scanned": { "$ref": "#/$defs/count", "description": "All sites attempted in the run." },
-        "sites_checked": { "$ref": "#/$defs/count", "description": "Sites with status ok. The denominator for adoption." },
-        "sites_failed": { "$ref": "#/$defs/count", "description": "Sites with status failed or skipped." },
-        "sites_using_qgds": { "$ref": "#/$defs/count" },
+        "sites_scanned": {
+          "$ref": "#/$defs/count",
+          "description": "All sites attempted in the run."
+        },
+        "sites_checked": {
+          "$ref": "#/$defs/count",
+          "description": "Sites with status ok. The denominator for adoption."
+        },
+        "sites_failed": {
+          "$ref": "#/$defs/count",
+          "description": "Sites with status failed or skipped."
+        },
+        "sites_using_qgds": {
+          "$ref": "#/$defs/count"
+        },
         "by_codebase": {
           "description": "Sites using each codebase. A site can count towards more than one. 'unclear' counts sites using QGDS with no codebase identified.",
           "type": "object",
           "additionalProperties": false,
-          "required": ["bootstrap", "web_components", "qh_vanilla", "unclear"],
+          "required": [
+            "bootstrap",
+            "web_components",
+            "qh_vanilla",
+            "unclear"
+          ],
           "properties": {
-            "bootstrap": { "$ref": "#/$defs/count" },
-            "web_components": { "$ref": "#/$defs/count" },
-            "qh_vanilla": { "$ref": "#/$defs/count" },
-            "unclear": { "$ref": "#/$defs/count" }
+            "bootstrap": {
+              "$ref": "#/$defs/count"
+            },
+            "web_components": {
+              "$ref": "#/$defs/count"
+            },
+            "qh_vanilla": {
+              "$ref": "#/$defs/count"
+            },
+            "unclear": {
+              "$ref": "#/$defs/count"
+            }
           }
         }
       }
@@ -81,68 +186,192 @@
     "site": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["url", "organisation", "status", "failure_type", "uses_qgds", "codebases"],
+      "required": [
+        "url",
+        "organisation",
+        "status",
+        "failure_type",
+        "uses_qgds",
+        "codebases"
+      ],
       "properties": {
-        "url": { "type": "string", "format": "uri" },
-        "organisation": { "type": ["string", "null"] },
-        "status": { "enum": ["ok", "failed", "skipped"] },
-        "failure_type": {
-          "enum": [null, "timeout", "dns", "tls", "http_error", "robots_disallowed", "other"]
+        "url": {
+          "type": "string",
+          "format": "uri"
         },
-        "uses_qgds": { "type": ["boolean", "null"] },
-        "codebases": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/codebase" } }
+        "organisation": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "status": {
+          "enum": [
+            "ok",
+            "failed",
+            "skipped"
+          ]
+        },
+        "failure_type": {
+          "enum": [
+            null,
+            "timeout",
+            "dns",
+            "tls",
+            "http_error",
+            "robots_disallowed",
+            "other"
+          ]
+        },
+        "uses_qgds": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "codebases": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/codebase"
+          }
+        }
       }
     },
     "figma": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["run", "components", "styles", "variables", "component_actions"],
+      "required": [
+        "run",
+        "components",
+        "styles",
+        "variables",
+        "component_actions"
+      ],
       "properties": {
-        "run": { "$ref": "#/$defs/run" },
-        "components": { "type": "array", "items": { "$ref": "#/$defs/asset" } },
-        "styles": { "type": "array", "items": { "$ref": "#/$defs/asset" } },
-        "variables": { "type": "array", "items": { "$ref": "#/$defs/asset" } },
+        "run": {
+          "$ref": "#/$defs/run"
+        },
+        "components": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/asset"
+          }
+        },
+        "styles": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/asset"
+          }
+        },
+        "variables": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/asset"
+          }
+        },
         "component_actions": {
           "description": "Component insertions and detachments. Null when the run collected no action data.",
-          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/componentActions" }]
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/componentActions"
+            }
+          ]
+        },
+        "totals": {
+          "description": "Usage totals excluding the QGDS library file. Added in 1.1. Null when the run did not collect totals.",
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/figmaTotals"
+            }
+          ]
         }
       }
     },
     "detachRate": {
       "description": "Detachments divided by insertions over the period. Null when insertions is 0. Can exceed 1 when components inserted before the period are detached during it.",
-      "type": ["number", "null"],
+      "type": [
+        "number",
+        "null"
+      ],
       "minimum": 0
     },
     "actionCounts": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["insertions", "detachments", "detach_rate"],
+      "required": [
+        "insertions",
+        "detachments",
+        "detach_rate"
+      ],
       "properties": {
-        "insertions": { "$ref": "#/$defs/count" },
-        "detachments": { "$ref": "#/$defs/count" },
-        "detach_rate": { "$ref": "#/$defs/detachRate" }
+        "insertions": {
+          "$ref": "#/$defs/count"
+        },
+        "detachments": {
+          "$ref": "#/$defs/count"
+        },
+        "detach_rate": {
+          "$ref": "#/$defs/detachRate"
+        }
       }
     },
     "componentActions": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["period_start", "period_end", "totals", "by_week", "by_component"],
+      "required": [
+        "period_start",
+        "period_end",
+        "totals",
+        "by_week",
+        "by_component"
+      ],
       "properties": {
-        "period_start": { "type": "string", "format": "date", "description": "First week included." },
-        "period_end": { "type": "string", "format": "date", "description": "Last week included." },
-        "totals": { "$ref": "#/$defs/actionCounts" },
+        "period_start": {
+          "type": "string",
+          "format": "date",
+          "description": "First week included."
+        },
+        "period_end": {
+          "type": "string",
+          "format": "date",
+          "description": "Last week included."
+        },
+        "totals": {
+          "$ref": "#/$defs/actionCounts"
+        },
         "by_week": {
           "description": "All components combined, oldest week first.",
           "type": "array",
           "items": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["week", "insertions", "detachments", "detach_rate"],
+            "required": [
+              "week",
+              "insertions",
+              "detachments",
+              "detach_rate"
+            ],
             "properties": {
-              "week": { "type": "string", "format": "date" },
-              "insertions": { "$ref": "#/$defs/count" },
-              "detachments": { "$ref": "#/$defs/count" },
-              "detach_rate": { "$ref": "#/$defs/detachRate" }
+              "week": {
+                "type": "string",
+                "format": "date"
+              },
+              "insertions": {
+                "$ref": "#/$defs/count"
+              },
+              "detachments": {
+                "$ref": "#/$defs/count"
+              },
+              "detach_rate": {
+                "$ref": "#/$defs/detachRate"
+              }
             }
           }
         },
@@ -152,14 +381,36 @@
           "items": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["key", "name", "group", "insertions", "detachments", "detach_rate"],
+            "required": [
+              "key",
+              "name",
+              "group",
+              "insertions",
+              "detachments",
+              "detach_rate"
+            ],
             "properties": {
-              "key": { "type": "string" },
-              "name": { "type": "string" },
-              "group": { "type": ["string", "null"] },
-              "insertions": { "$ref": "#/$defs/count" },
-              "detachments": { "$ref": "#/$defs/count" },
-              "detach_rate": { "$ref": "#/$defs/detachRate" }
+              "key": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "group": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "insertions": {
+                "$ref": "#/$defs/count"
+              },
+              "detachments": {
+                "$ref": "#/$defs/count"
+              },
+              "detach_rate": {
+                "$ref": "#/$defs/detachRate"
+              }
             }
           }
         }
@@ -168,14 +419,61 @@
     "asset": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["key", "name", "group", "usages", "teams_using", "files_using"],
+      "required": [
+        "key",
+        "name",
+        "group",
+        "usages",
+        "teams_using",
+        "files_using"
+      ],
       "properties": {
-        "key": { "type": "string" },
-        "name": { "type": "string" },
-        "group": { "type": ["string", "null"] },
-        "usages": { "$ref": "#/$defs/count" },
-        "teams_using": { "$ref": "#/$defs/count" },
-        "files_using": { "$ref": "#/$defs/count" }
+        "key": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "group": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "usages": {
+          "$ref": "#/$defs/count"
+        },
+        "teams_using": {
+          "$ref": "#/$defs/count"
+        },
+        "files_using": {
+          "$ref": "#/$defs/count"
+        }
+      }
+    },
+    "figmaTotals": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "excludes",
+        "component_instances",
+        "style_uses",
+        "variable_uses"
+      ],
+      "properties": {
+        "excludes": {
+          "description": "Files left out of the totals.",
+          "const": "library_file"
+        },
+        "component_instances": {
+          "$ref": "#/$defs/count"
+        },
+        "style_uses": {
+          "$ref": "#/$defs/count"
+        },
+        "variable_uses": {
+          "$ref": "#/$defs/count"
+        }
       }
     }
   }

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { actionRows, parseFileKey, usageRows, weekWindow } from "../src/figma.ts";
+import { actionRows, libraryTotals, parseFileKey, usageRows, weekWindow } from "../src/figma.ts";
 
 const KEY = "AbCdEfGhIjKlMnOpQrStUv";
 
@@ -49,4 +49,24 @@ test("actionRows keeps only complete weeks in the window", () => {
   const action = (week: string) => ({ component_key: "c1", component_name: "Example", component_set_name: null, week, insertions: 1, detachments: 0 });
   const rows = actionRows("run", [action("2026-06-28"), action("2026-07-05"), action("2026-09-20"), action("2026-09-27")], { startDate: "2026-07-05", lastWeek: "2026-09-20" });
   assert.deepEqual(rows.map((r) => r.week), ["2026-07-05", "2026-09-20"]);
+});
+
+test("libraryTotals separates the library file by exact name", () => {
+  const rows = [
+    { file_name: "Example library", team_name: "Example team", usages: 10 },
+    { file_name: "Example library (Copy)", team_name: "Other team", usages: 5 },
+    { file_name: "Project file", team_name: "Other team", usages: 85 },
+  ];
+  assert.deepEqual(libraryTotals(rows, "Example library", true), { usages_all_files: 100, usages_library_file: 10 });
+});
+
+test("libraryTotals requires a match for components but not for styles or variables", () => {
+  const rows = [{ file_name: "Project file", usages: 5 }];
+  assert.throws(() => libraryTotals(rows, "Example library", true), /No file matches/);
+  assert.deepEqual(libraryTotals(rows, "Example library", false), { usages_all_files: 5, usages_library_file: 0 });
+});
+
+test("libraryTotals refuses an ambiguous name", () => {
+  const rows = [{ file_name: "Example library", usages: 1 }, { file_name: "Example library", usages: 2 }];
+  assert.throws(() => libraryTotals(rows, "Example library", false), /2 files are named like the library/);
 });

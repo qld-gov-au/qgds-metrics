@@ -23,6 +23,7 @@
     "dashboard:upload": "node db/upload-build.ts",
     "sites:import": "node db/import-sites.ts",
     "db:verify": "node db/verify.ts",
+    "db:migrate": "node db/migrate.ts",
     "data:pull": "node scripts/data-sync.ts pull",
     "data:push": "node scripts/data-sync.ts push"
   },

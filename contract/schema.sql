@@ -86,8 +86,21 @@ create table figma_component_actions (
   primary key (run_id, component_key, week)
 );
 
+-- Usage totals per asset type per Figma run, all files and the library file alone.
+-- Per-component usage cannot be split by file, so the library file is excluded from
+-- totals only. Stores counts, not file or team names.
+create table figma_usage_totals (
+  run_id               uuid not null references runs (id) on delete cascade,
+  asset_type           text not null check (asset_type in ('component', 'style', 'variable')),
+  usages_all_files     integer not null check (usages_all_files >= 0),
+  usages_library_file  integer not null check (usages_library_file >= 0),
+  primary key (run_id, asset_type),
+  check (usages_library_file <= usages_all_files)
+);
+
 alter table runs          enable row level security;
 alter table sites         enable row level security;
 alter table site_results  enable row level security;
 alter table figma_usage   enable row level security;
 alter table figma_component_actions enable row level security;
+alter table figma_usage_totals enable row level security;

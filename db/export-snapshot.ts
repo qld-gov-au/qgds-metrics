@@ -11,7 +11,7 @@ import { Ajv2020 } from "ajv/dist/2020.js";
 import addFormatsModule from "ajv-formats";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { isMissingTable, serviceClient } from "../scripts/supabase.ts";
-import { buildSnapshot, type FigmaActionRow, type FigmaUsageRow, type RunRow, type SiteResultRow } from "./snapshot.ts";
+import { buildSnapshot, type FigmaActionRow, type FigmaTotalsRow, type FigmaUsageRow, type RunRow, type SiteResultRow } from "./snapshot.ts";
 
 const addFormats = addFormatsModule as unknown as typeof addFormatsModule.default;
 const outIndex = process.argv.indexOf("--out");
@@ -50,7 +50,7 @@ const supabase = serviceClient();
 try {
   const webRuns = await succeededRuns(supabase, "web");
   const figmaRun = (await succeededRuns(supabase, "figma")).at(-1) ?? null;
-  const [results, figmaUsage, figmaActions] = await Promise.all([
+  const [results, figmaUsage, figmaActions, figmaTotals] = await Promise.all([
     webResults(supabase, webRuns.map((r) => r.id)),
     figmaRun
       ? all<FigmaUsageRow>((from, to) => supabase.from("figma_usage").select("asset_type, asset_key, asset_name, asset_group, usages, teams_using, files_using").eq("run_id", figmaRun.id).order("asset_key").range(from, to))
@@ -58,9 +58,12 @@ try {
     figmaRun
       ? all<FigmaActionRow>((from, to) => supabase.from("figma_component_actions").select("component_key, component_name, component_group, week, insertions, detachments").eq("run_id", figmaRun.id).order("component_key").order("week").range(from, to))
       : [],
+    figmaRun
+      ? all<FigmaTotalsRow>((from, to) => supabase.from("figma_usage_totals").select("asset_type, usages_all_files, usages_library_file").eq("run_id", figmaRun.id).order("asset_type").range(from, to))
+      : [],
   ]);
 
-  const snapshot = buildSnapshot({ generatedAt: new Date().toISOString(), webRuns, webResults: results, figmaRun, figmaUsage, figmaActions });
+  const snapshot = buildSnapshot({ generatedAt: new Date().toISOString(), webRuns, webResults: results, figmaRun, figmaUsage, figmaActions, figmaTotals });
 
   const ajv = new Ajv2020({ allErrors: true, strict: true });
   addFormats(ajv);

@@ -276,32 +276,41 @@ function renderFigma(figma) {
     }
     return [...groups.values()];
   };
-  const components = groupBy(figma.components, ["usages"]).sort((a, b) => b.usages - a.usages || a.name.localeCompare(b.name));
+  const components = groupBy(figma.components, ["usages"]);
+  const instancesByName = new Map(components.map((c) => [c.name, c.usages]));
+  const actions = figma.component_actions;
 
+  // Headline totals leave out the library file when the snapshot has them (version 1.1).
+  const totals = figma.totals;
+  const scope = totals ? "Not counting the library file" : "Includes the library file";
   root.append(
-    h("p", {}, `Collected ${dateTime(figma.run.finished_at)}. Counts are current use across all files that use the library.`),
+    h("p", {}, `Collected ${dateTime(figma.run.finished_at)}. Counts are current use across files that use the library${totals ? ", not counting the library file itself" : ""}.`),
     statTiles([
-      { label: "Component instances", value: number.format(sum(figma.components, "usages")), detail: `${plural(components.length, "component", "components")}, ${plural(figma.components.length, "variant", "variants")}` },
-      { label: "Style uses", value: number.format(sum(figma.styles, "usages")), detail: plural(figma.styles.length, "style", "styles") },
-      { label: "Variable uses", value: number.format(sum(figma.variables, "usages")), detail: plural(figma.variables.length, "variable", "variables") },
+      { label: "Component instances", value: number.format(totals ? totals.component_instances : sum(figma.components, "usages")), detail: `${scope}. ${plural(components.length, "component", "components")}, ${plural(figma.components.length, "variant", "variants")}.` },
+      { label: "Style uses", value: number.format(totals ? totals.style_uses : sum(figma.styles, "usages")), detail: `${scope}. ${plural(figma.styles.length, "style", "styles")}.` },
+      { label: "Variable uses", value: number.format(totals ? totals.variable_uses : sum(figma.variables, "usages")), detail: `${scope}. ${plural(figma.variables.length, "variable", "variables")}.` },
     ]),
   );
 
-  const top = components.slice(0, 10);
-  if (top.length === 0) {
-    root.append(h("h3", {}, "Most used components"), alert("info", "No component use recorded", "The latest Figma run found no uses of library components."));
+  // Rank by insertions: instances include components nested inside others, which puts
+  // base components at the top even though designers rarely place them directly.
+  const inserted = actions
+    ? groupBy(actions.by_component, ["insertions"]).filter((c) => c.insertions > 0).sort((a, b) => b.insertions - a.insertions || a.name.localeCompare(b.name)).slice(0, 10)
+    : [];
+  if (inserted.length === 0) {
+    root.append(h("h3", {}, "Most inserted components"), alert("info", "No insertions recorded", "The latest Figma run found no insertions of library components."));
   } else {
     root.append(chartFigure(
-      "Most used components",
-      `The ${plural(top.length, "component", "components")} with the most instances in files, with all variants of each component added together.`,
-      barChartHeight(top.map((c) => c.name)),
-      (canvas) => barChart(canvas, top.map((c) => c.name), top.map((c) => c.usages), (v) => number.format(v)),
-      tableDetails("Show data table", dataTable("Most used components", [{ label: "Component" }, { label: "Variants", num: true }, { label: "Instances", num: true }],
-        top.map((c) => [c.name, number.format(c.variants), number.format(c.usages)]))),
+      "Most inserted components",
+      `The ${plural(inserted.length, "component", "components")} designers placed most often in the ${actions.by_week.length} weeks, with all variants added together.`,
+      barChartHeight(inserted.map((c) => c.name)),
+      (canvas) => barChart(canvas, inserted.map((c) => c.name), inserted.map((c) => c.insertions), (v) => number.format(v)),
+      tableDetails("Show data table", dataTable("Most inserted components", [{ label: "Component" }, { label: "Insertions", num: true }, { label: "Instances", num: true }],
+        inserted.map((c) => [c.name, number.format(c.insertions), instancesByName.has(c.name) ? number.format(instancesByName.get(c.name)) : "Not recorded"]))),
+      "Insertions count components placed directly. Instances also count components nested inside others and those in the library file, so base components have many instances but few insertions.",
     ));
   }
 
-  const actions = figma.component_actions;
   if (!actions) {
     root.append(h("h3", {}, "Detach rate"), alert("info", "No insertion or detachment data", "The latest Figma run did not collect component actions."));
     return;
@@ -317,7 +326,7 @@ function renderFigma(figma) {
 
   root.append(
     h("h3", {}, "Detach rate"),
-    h("p", {}, `Weeks starting ${date(actions.period_start)} to ${date(actions.period_end)}. Detach rate is detachments divided by insertions. It can be above 100% when components inserted earlier are detached in this period.`),
+    h("p", {}, `Weeks starting ${date(actions.period_start)} to ${date(actions.period_end)}. Detach rate is detachments divided by insertions. It can be above 100% when components inserted earlier are detached in this period. Figma cannot separate actions in the library file, so they are included.`),
     statTiles([
       { label: "Detach rate", value: rate(actions.totals.detach_rate), detail: `${number.format(actions.totals.detachments)} detachments, ${number.format(actions.totals.insertions)} insertions` },
     ]),
@@ -355,8 +364,8 @@ function main() {
     }
     return;
   }
-  if (snapshot.schema_version !== "1.0") {
-    document.getElementById("generated").textContent = `This dashboard expects snapshot version 1.0 but received ${snapshot.schema_version}. Figures may be wrong.`;
+  if (!/^1\.\d+$/.test(snapshot.schema_version)) {
+    document.getElementById("generated").textContent = `This dashboard reads snapshot version 1 but received ${snapshot.schema_version}. Figures may be wrong.`;
   } else {
     document.getElementById("generated").textContent = `Data exported ${dateTime(snapshot.generated_at)}.`;
   }

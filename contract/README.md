@@ -17,6 +17,7 @@ Examples use placeholders only, such as `example-agency` and `https://site-a.exa
 - **`site_results`**: one row per site per web run.
 - **`figma_usage`**: one row per QGDS library component, style or variable per Figma run.
 - **`figma_component_actions`**: weekly insertions and detachments for each QGDS library component per Figma run.
+- **`figma_usage_totals`**: usage totals per asset type per Figma run, for all files and for the library file alone.
 
 Row level security is on with no policies, so only the service role can access the tables.
 
@@ -47,6 +48,13 @@ The export script writes one snapshot built from the latest succeeded run of eac
 - `history` lists totals for every succeeded web run, oldest first, including the latest.
 - Figma `group` is the component set name for components, the style type for styles, and the collection name for variables.
 
+### Figma totals and the library file
+
+- Instances inside the QGDS library file are not use of the library, so `figma.totals` leaves the library file out. Use it for headline figures.
+- Figma cannot split per-component usage by file, so `components`, `styles` and `variables` still include the library file. Component instances also include nested instances, for example a base component inside a card. Rank components by insertions, not instances.
+- Figma cannot split insertions and detachments by file either, so `component_actions` and the detach rate include actions in the library file.
+- `figma.totals` is optional. It is null for runs collected before 1.1.
+
 ### Detach rate
 
 - The Figma script collects the last 12 complete weeks. The window can be extended without changing the contract.
@@ -58,4 +66,4 @@ The export script writes one snapshot built from the latest succeeded run of eac
 
 ## Versioning
 
-`schema_version` is `1.0`. Adding an optional field is a minor change (`1.1`). Removing or renaming a field, or changing its meaning, is a major change (`2.0`) and needs the dashboard updated in the same change.
+`schema_version` is `1.1`. Version 1.1 added the optional `figma.totals`. Adding an optional field is a minor change (`1.1`). Removing or renaming a field, or changing its meaning, is a major change (`2.0`) and needs the dashboard updated in the same change.
