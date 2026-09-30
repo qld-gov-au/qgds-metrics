@@ -8,6 +8,8 @@ const CODEBASE_LABELS = {
   qh_vanilla: "Queensland Health Vanilla",
   unclear: "Own codebase, styled with QGDS",
 };
+// Days after which the latest crawl is shown as overdue. Crawls are monthly.
+const OVERDUE_DAYS = 35;
 const FAILURE_LABELS = {
   timeout: "timed out",
   dns: "address not found",
@@ -149,6 +151,11 @@ function renderWeb(web) {
     return;
   }
   const t = web.totals;
+  // Crawls run monthly, so warn when the latest is well past due.
+  const ageDays = Math.floor((Date.now() - Date.parse(web.run.finished_at)) / 86_400_000);
+  if (ageDays > OVERDUE_DAYS) {
+    root.append(alert("warning", "Website data may be out of date", `The latest website crawl is ${ageDays} days old. Crawls are due monthly, so these figures may not reflect the sites as they are now.`));
+  }
   root.append(
     h("p", {}, `Observed on ${plural(t.sites_scanned, "site", "sites")} scanned, ${dateTime(web.run.finished_at)}.`),
     statTiles([

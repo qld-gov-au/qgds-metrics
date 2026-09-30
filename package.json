@@ -15,6 +15,7 @@
     "test:contract": "node scripts/check-contract.ts",
     "crawler:seeds": "node crawler/src/check-seeds.ts",
     "crawl": "node crawler/src/crawl.ts",
+    "monthly": "node scripts/monthly.ts",
     "export": "node db/export-snapshot.ts",
     "dashboard:build": "node dashboard/build.ts",
     "dashboard:dev": "npm run dashboard:build && node dashboard/serve.ts",

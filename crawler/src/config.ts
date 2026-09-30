@@ -11,3 +11,6 @@ export const DELAY_BETWEEN_SITES_MS = 1_500;
 export const BLOCKED_RESOURCE_TYPES = new Set(["image", "media", "font"]);
 // Fixed desktop viewport, because heading sizes and layout change with width.
 export const VIEWPORT = { width: 1280, height: 900 };
+// A run where more than this share of sites fail to load is marked failed, so it is not
+// exported. A high failure rate usually means the crawler's network is being blocked.
+export const MAX_FAILED_SHARE = 0.25;

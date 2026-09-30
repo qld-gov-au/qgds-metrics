@@ -41,7 +41,22 @@ npm run dashboard:dev
 
 To preview with placeholder data instead, run `npm run dashboard:build -- --snapshot contract/examples/snapshot.example.json`.
 
-The Build dashboard workflow crawls and rebuilds monthly, and can also be run manually from the Actions tab. It uploads `metrics-data/builds/<run-timestamp>/qgds-metrics-dashboard.zip` to Supabase Storage. Team members download it from the Supabase dashboard, unzip it and open `index.html`. It works without a server.
+The Build dashboard workflow uploads `metrics-data/builds/<run-timestamp>/qgds-metrics-dashboard.zip` to Supabase Storage. Team members download it from the Supabase dashboard, unzip it and open `index.html`. It works without a server.
+
+## Monthly routine
+
+Once a month, from a work network, run:
+
+```
+npm run monthly
+```
+
+It crawls all active sites from this machine, then starts the Build dashboard workflow and waits for the new build. It needs the GitHub CLI (`gh`), signed in.
+
+- **Crawls run locally, not in Actions.** Many sites return 403 to cloud data centres, including GitHub's runners. Do not add crawling back to the workflow unless the sites allow the crawler through. Never work around a block.
+- **Blocked crawls are discarded.** If more than 25% of sites fail to load, the run is marked failed and never exported.
+- **The workflow also runs on its own** at 3 am Brisbane time on the 2nd of each month, rebuilding from the latest data.
+- **The dashboard flags stale data.** If the latest crawl is more than 35 days old, it shows a warning.
 
 ## Repository structure
 

@@ -10,6 +10,7 @@ import { chromium } from "playwright";
 import { isMissingTable, serviceClient } from "../../scripts/supabase.ts";
 import { DELAY_BETWEEN_SITES_MS, USER_AGENT } from "./config.ts";
 import { checkSite, type SiteResult } from "./check-site.ts";
+import { runOutcome } from "./run-outcome.ts";
 
 const limitIndex = process.argv.indexOf("--limit");
 const limit = limitIndex > -1 ? Number(process.argv[limitIndex + 1]) : null;
@@ -102,8 +103,8 @@ try {
   await browser.close();
 }
 
-const status = tally.writeErrors === 0 ? "succeeded" : "failed";
-if (run) await finishRun(run.id, status);
+const outcome = runOutcome({ total: sites.length, failed: tally.failed, writeErrors: tally.writeErrors });
+if (run) await finishRun(run.id, outcome.status);
 
 const seconds = Math.round((Date.now() - started) / 1000);
 const failures = [...failureTypes].map(([type, n]) => `${n} ${type}`).join(", ");
@@ -111,8 +112,8 @@ console.log(
   `Crawled ${sites.length} site(s) in ${seconds}s: ${tally.ok} checked (${tally.usingQgds} using QGDS), ` +
     `${tally.failed} failed, ${tally.skipped} skipped${failures ? ` (${failures})` : ""}.`,
 );
-if (tally.writeErrors > 0) {
-  console.error(`${tally.writeErrors} result(s) could not be saved. Run marked failed.`);
+if (outcome.status === "failed") {
+  console.error(`${outcome.reason} ${run ? "Run marked failed." : ""}`.trim());
   process.exit(1);
 }
-if (run) console.log(`Run ${status}.`);
+if (run) console.log("Run succeeded.");
