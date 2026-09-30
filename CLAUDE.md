@@ -51,7 +51,7 @@ Once a month, from a work network, run:
 npm run monthly
 ```
 
-It crawls all active sites from this machine, then starts the Build dashboard workflow and waits for the new build. It needs the GitHub CLI (`gh`), signed in.
+It crawls all active sites from this machine, then starts the Build dashboard workflow and waits for the new build. It needs the GitHub CLI (`gh`), signed in. The workflow collects Figma Library Analytics itself (`npm run figma`), because Figma's API is not blocked from GitHub.
 
 - **Crawls run locally, not in Actions.** Many sites return 403 to cloud data centres, including GitHub's runners. Do not add crawling back to the workflow unless the sites allow the crawler through. Never work around a block.
 - **Blocked crawls are discarded.** If more than 25% of sites fail to load, the run is marked failed and never exported.

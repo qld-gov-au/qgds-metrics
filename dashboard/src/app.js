@@ -27,6 +27,8 @@ function h(tag, attrs, ...children) {
   return el;
 }
 
+// Resolves when fonts have loaded, or after 3 seconds if they cannot load (for example offline).
+const fontsReady = Promise.race([document.fonts?.ready ?? Promise.resolve(), new Promise((resolve) => setTimeout(resolve, 3000))]);
 const token = (name, fallback) => getComputedStyle(document.body).getPropertyValue(name).trim() || fallback;
 const number = new Intl.NumberFormat("en-AU");
 const percent = (part, whole) => (whole > 0 ? `${Math.round((part / whole) * 100)}%` : "No sites checked");
@@ -92,18 +94,38 @@ function wrapLabel(text, width = 18) {
   return lines;
 }
 
+// Chart height that gives every bar room for the longest label at the narrowest wrap.
+// Chart.js gives all bars the same height, so size by the label with the most lines.
+const barChartHeight = (labels) => labels.length * Math.max(44, ...labels.map((l) => wrapLabel(l, 14).length * 18 + 22)) + 40;
+
 function barChart(canvas, labels, values, format, max) {
+  // Narrow screens get shorter lines, so labels leave room for the bars.
+  const wrapped = labels.map((l) => wrapLabel(l, canvas.clientWidth < 480 ? 14 : 18));
   const colour = token("--qgds-color-primary-sapphire-blue", "#09549f");
   return new window.Chart(canvas, {
     type: "bar",
-    data: { labels: labels.map((l) => wrapLabel(l)), datasets: [{ data: values, backgroundColor: colour, hoverBackgroundColor: token("--qgds-color-primary-dark-blue", "#05325f"), borderRadius: { topRight: 4, bottomRight: 4 }, borderSkipped: "start", maxBarThickness: 28 }] },
+    data: { labels: wrapped, datasets: [{ data: values, backgroundColor: colour, hoverBackgroundColor: token("--qgds-color-primary-dark-blue", "#05325f"), borderRadius: { topRight: 4, bottomRight: 4 }, borderSkipped: "start", maxBarThickness: 28 }] },
     options: {
       indexAxis: "y",
       maintainAspectRatio: false,
       layout: { padding: { left: 12, right: 72 } },
       scales: {
         x: { beginAtZero: true, suggestedMax: max, ticks: { precision: 0 }, grid: { color: token("--qgds-color-border", "#ebebeb") } },
-        y: { grid: { display: false }, ticks: { color: token("--qgds-color-text-default", "#353535") } },
+        // autoSkip off: every bar must keep its label.
+        y: {
+          grid: { display: false },
+          ticks: { autoSkip: false, color: token("--qgds-color-text-default", "#353535") },
+          // Chart.js can size the label area narrower than the longest label on small
+          // screens. Measure the labels and widen it, up to 60% of the chart.
+          afterFit: (scale) => {
+            const ctx = scale.ctx;
+            ctx.save();
+            ctx.font = `14px ${token("--qgds-font-family", "sans-serif")}`;
+            const widest = Math.max(...wrapped.flat().map((line) => ctx.measureText(line).width));
+            ctx.restore();
+            scale.width = Math.min(Math.max(scale.width, widest + 20), scale.chart.width * 0.6);
+          },
+        },
       },
       plugins: {
         legend: { display: false },
@@ -115,7 +137,8 @@ function barChart(canvas, labels, values, format, max) {
   });
 }
 
-function lineChart(canvas, labels, values, tooltip) {
+// yMax null lets the scale fit the data, for small values such as detach rates.
+function lineChart(canvas, labels, values, tooltip, { yMax = 100, decimals = 0 } = {}) {
   const colour = token("--qgds-color-primary-sapphire-blue", "#09549f");
   return new window.Chart(canvas, {
     type: "line",
@@ -124,7 +147,7 @@ function lineChart(canvas, labels, values, tooltip) {
       maintainAspectRatio: false,
       interaction: { mode: "index", intersect: false },
       scales: {
-        y: { min: 0, max: 100, ticks: { callback: (v) => `${v}%`, stepSize: 25 }, grid: { color: token("--qgds-color-border", "#ebebeb") } },
+        y: { min: 0, max: yMax ?? undefined, ticks: { callback: (v) => `${Number(v).toFixed(decimals)}%`, ...(yMax === 100 ? { stepSize: 25 } : { maxTicksLimit: 6 }) }, grid: { color: token("--qgds-color-border", "#ebebeb") } },
         x: { grid: { display: false } },
       },
       plugins: { legend: { display: false }, tooltip: { callbacks: { label: (item) => tooltip(item.dataIndex) } } },
@@ -139,7 +162,9 @@ function chartFigure(title, description, height, draw, table, note) {
     h("div", { class: "chart-box", style: `height: ${height}px` }, canvas),
     note ? h("p", { class: "chart-note" }, note) : null,
     table);
-  queueMicrotask(() => draw(canvas));
+  // Draw after web fonts load. Chart.js sizes label space when it draws, so measuring
+  // with a fallback font would clip labels once Noto Sans arrives.
+  fontsReady.then(() => draw(canvas));
   return figure;
 }
 
@@ -181,7 +206,7 @@ function renderWeb(web) {
     root.append(chartFigure(
       "Sites by QGDS codebase",
       `How the ${plural(t.sites_checked, "checked site", "checked sites")} are built.`,
-      rows.length * 48 + 40,
+      barChartHeight(rows.map((r) => r[0])),
       (canvas) => barChart(canvas, rows.map((r) => r[0]), rows.map((r) => r[1]), format, t.sites_checked),
       tableDetails("Show data table", dataTable("Sites by QGDS codebase", [{ label: "Codebase" }, { label: "Sites", num: true }, { label: "Share of checked sites", num: true }], rows.map(([label, v]) => [label, number.format(v), percent(v, t.sites_checked)]))),
       "A site can use more than one codebase, so the bars can add up to more than the number of sites checked. Percentages are of sites checked.",
@@ -238,46 +263,87 @@ function renderFigma(figma) {
     return;
   }
   const sum = (list, key) => list.reduce((n, a) => n + a[key], 0);
+  // Figma reports each variant separately. Group variants under their component set,
+  // so a component with many variants appears once.
+  const groupBy = (list, fields) => {
+    const groups = new Map();
+    for (const item of list) {
+      const name = item.group ?? item.name;
+      const g = groups.get(name) ?? { name, variants: 0, ...Object.fromEntries(fields.map((f) => [f, 0])) };
+      g.variants++;
+      for (const f of fields) g[f] += item[f];
+      groups.set(name, g);
+    }
+    return [...groups.values()];
+  };
+  const components = groupBy(figma.components, ["usages"]).sort((a, b) => b.usages - a.usages || a.name.localeCompare(b.name));
+
   root.append(
-    h("p", {}, `Collected ${dateTime(figma.run.finished_at)}.`),
+    h("p", {}, `Collected ${dateTime(figma.run.finished_at)}. Counts are current use across all files that use the library.`),
     statTiles([
-      { label: "Component instances", value: number.format(sum(figma.components, "usages")), detail: plural(figma.components.length, "component", "components") },
+      { label: "Component instances", value: number.format(sum(figma.components, "usages")), detail: `${plural(components.length, "component", "components")}, ${plural(figma.components.length, "variant", "variants")}` },
       { label: "Style uses", value: number.format(sum(figma.styles, "usages")), detail: plural(figma.styles.length, "style", "styles") },
       { label: "Variable uses", value: number.format(sum(figma.variables, "usages")), detail: plural(figma.variables.length, "variable", "variables") },
     ]),
   );
 
-  const top = figma.components.slice(0, 10);
+  const top = components.slice(0, 10);
   if (top.length === 0) {
     root.append(h("h3", {}, "Most used components"), alert("info", "No component use recorded", "The latest Figma run found no uses of library components."));
   } else {
     root.append(chartFigure(
       "Most used components",
-      `The ${plural(top.length, "component", "components")} with the most instances in files.`,
-      top.length * 40 + 40,
+      `The ${plural(top.length, "component", "components")} with the most instances in files, with all variants of each component added together.`,
+      barChartHeight(top.map((c) => c.name)),
       (canvas) => barChart(canvas, top.map((c) => c.name), top.map((c) => c.usages), (v) => number.format(v)),
-      tableDetails("Show data table", dataTable("Most used components", [{ label: "Component" }, { label: "Instances", num: true }, { label: "Teams", num: true }, { label: "Files", num: true }],
-        top.map((c) => [c.name, number.format(c.usages), number.format(c.teams_using), number.format(c.files_using)]))),
+      tableDetails("Show data table", dataTable("Most used components", [{ label: "Component" }, { label: "Variants", num: true }, { label: "Instances", num: true }],
+        top.map((c) => [c.name, number.format(c.variants), number.format(c.usages)]))),
     ));
   }
 
   const actions = figma.component_actions;
-  root.append(h("h3", {}, "Detach rate"));
   if (!actions) {
-    root.append(alert("info", "No insertion or detachment data", "The latest Figma run did not collect component actions."));
+    root.append(h("h3", {}, "Detach rate"), alert("info", "No insertion or detachment data", "The latest Figma run did not collect component actions."));
     return;
   }
-  const rate = (r) => (r === null ? "No insertions" : `${Math.round(r * 1000) / 10}%`);
+  // Small rates need two decimal places to be meaningful.
+  const rate = (r) => (r === null ? "No insertions" : `${(r * 100).toFixed(r < 0.1 ? 2 : 1)}%`);
+  const detachRate = (insertions, detachments) => (insertions === 0 ? null : detachments / insertions);
+  const byComponent = groupBy(actions.by_component, ["insertions", "detachments"])
+    .map((c) => ({ ...c, detach_rate: detachRate(c.insertions, c.detachments) }))
+    .sort((a, b) => b.detachments - a.detachments || a.name.localeCompare(b.name));
+  const mostDetached = byComponent.filter((c) => c.detachments > 0).slice(0, 20);
+  const weeks = actions.by_week;
+
   root.append(
+    h("h3", {}, "Detach rate"),
     h("p", {}, `Weeks starting ${date(actions.period_start)} to ${date(actions.period_end)}. Detach rate is detachments divided by insertions. It can be above 100% when components inserted earlier are detached in this period.`),
     statTiles([
       { label: "Detach rate", value: rate(actions.totals.detach_rate), detail: `${number.format(actions.totals.detachments)} detachments, ${number.format(actions.totals.insertions)} insertions` },
     ]),
-    tableDetails("Show detach rate by week", dataTable("Detach rate by week", [{ label: "Week starting" }, { label: "Insertions", num: true }, { label: "Detachments", num: true }, { label: "Detach rate", num: true }],
-      actions.by_week.map((w) => [date(w.week), number.format(w.insertions), number.format(w.detachments), rate(w.detach_rate)]))),
-    tableDetails("Show detach rate by component", dataTable("Detach rate by component", [{ label: "Component" }, { label: "Insertions", num: true }, { label: "Detachments", num: true }, { label: "Detach rate", num: true }],
-      actions.by_component.map((c) => [c.name, number.format(c.insertions), number.format(c.detachments), rate(c.detach_rate)]))),
   );
+  if (weeks.length >= 2) {
+    const values = weeks.map((w) => (w.detach_rate === null ? null : Math.round(w.detach_rate * 10000) / 100));
+    root.append(chartFigure(
+      "Detach rate by week",
+      "Each point is one week. Weeks with no insertions have no point.",
+      260,
+      (canvas) => lineChart(canvas, weeks.map((w) => date(w.week)), values,
+        (i) => `${rate(weeks[i].detach_rate)} (${number.format(weeks[i].detachments)} of ${number.format(weeks[i].insertions)} insertions)`, { yMax: null, decimals: 1 }),
+      tableDetails("Show data table", dataTable("Detach rate by week", [{ label: "Week starting" }, { label: "Insertions", num: true }, { label: "Detachments", num: true }, { label: "Detach rate", num: true }],
+        weeks.map((w) => [date(w.week), number.format(w.insertions), number.format(w.detachments), rate(w.detach_rate)]))),
+    ));
+  }
+  root.append(h("h3", {}, "Most detached components"));
+  if (mostDetached.length === 0) {
+    root.append(alert("success", "No detachments", "No library components were detached in this period."));
+  } else {
+    root.append(
+      h("p", {}, `The ${plural(mostDetached.length, "component", "components")} detached most often in this period, with all variants added together. A high detach rate can mean a component does not meet a team's needs.`),
+      dataTable("Most detached components", [{ label: "Component" }, { label: "Detachments", num: true }, { label: "Insertions", num: true }, { label: "Detach rate", num: true }],
+        mostDetached.map((c) => [c.name, number.format(c.detachments), number.format(c.insertions), rate(c.detach_rate)])),
+    );
+  }
 }
 
 function main() {
