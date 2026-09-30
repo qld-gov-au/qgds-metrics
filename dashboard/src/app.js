@@ -8,6 +8,15 @@ const CODEBASE_LABELS = {
   qh_vanilla: "Queensland Health Vanilla",
   unclear: "Own codebase, styled with QGDS",
 };
+const TIER_LABELS = {
+  master_brand: "Master brand",
+  sub_brand: "Sub-brand",
+  co_brand: "Co-brand",
+  endorsed: "Endorsed",
+  stand_alone: "Stand alone",
+};
+const TIER_ORDER = ["master_brand", "sub_brand", "co_brand", "endorsed", "stand_alone", null];
+
 // Days after which the latest crawl is shown as overdue. Crawls are monthly.
 const OVERDUE_DAYS = 35;
 const FAILURE_LABELS = {
@@ -101,6 +110,10 @@ const barChartHeight = (labels) => labels.length * Math.max(44, ...labels.map((l
 function barChart(canvas, labels, values, format, max) {
   // Narrow screens get shorter lines, so labels leave room for the bars.
   const wrapped = labels.map((l) => wrapLabel(l, canvas.clientWidth < 480 ? 14 : 18));
+  // Reserve room after the longest bar for the widest value label, so none is clipped.
+  const measure = canvas.getContext("2d");
+  measure.font = `600 14px ${token("--qgds-font-family", "sans-serif")}`;
+  const valueRoom = Math.ceil(Math.max(...values.map((v, i) => measure.measureText(format(v, i)).width))) + 16;
   const colour = token("--qgds-color-primary-sapphire-blue", "#09549f");
   return new window.Chart(canvas, {
     type: "bar",
@@ -108,9 +121,10 @@ function barChart(canvas, labels, values, format, max) {
     options: {
       indexAxis: "y",
       maintainAspectRatio: false,
-      layout: { padding: { left: 12, right: 72 } },
+      layout: { padding: { left: 12, right: valueRoom } },
       scales: {
-        x: { beginAtZero: true, suggestedMax: max, ticks: { precision: 0 }, grid: { color: token("--qgds-color-border", "#ebebeb") } },
+        // A maximum of 100 means the values are percentages.
+        x: { beginAtZero: true, suggestedMax: max, ...(max === 100 ? { max: 100 } : {}), ticks: { precision: 0, ...(max === 100 ? { callback: (v) => `${v}%` } : {}) }, grid: { color: token("--qgds-color-border", "#ebebeb") } },
         // autoSkip off: every bar must keep its label.
         y: {
           grid: { display: false },
@@ -238,6 +252,34 @@ function renderWeb(web) {
     ));
   }
 
+  // Breakdowns (snapshot 1.2 and later)
+  if (web.breakdowns) {
+    const share = (r) => (r.sites_checked > 0 ? Math.round((r.sites_using_qgds / r.sites_checked) * 100) : null);
+    const tiers = [...web.breakdowns.brand_tier].sort((a, b) => TIER_ORDER.indexOf(a.value) - TIER_ORDER.indexOf(b.value));
+    const tierLabel = (v) => (v === null ? "No tier recorded" : TIER_LABELS[v] ?? v);
+    const checkedTiers = tiers.filter((r) => r.sites_checked > 0);
+    const breakdownColumns = (first) => [{ label: first }, { label: "Sites scanned", num: true }, { label: "Sites checked", num: true }, { label: "Using QGDS", num: true }, { label: "Share", num: true }];
+    const breakdownRow = (label, r) => [label, number.format(r.sites_scanned), number.format(r.sites_checked), number.format(r.sites_using_qgds), share(r) === null ? "No sites checked" : `${share(r)}%`];
+    if (checkedTiers.length === 0) {
+      root.append(h("h3", {}, "QGDS use by brand tier"), alert("info", "No brand tiers to compare", "No checked sites in the latest crawl have a brand tier recorded."));
+    } else {
+      root.append(chartFigure(
+        "QGDS use by brand tier",
+        "The share of checked sites in each tier of the QGDS brand architecture that use QGDS. Tiers further from the master brand have more flexibility in how they apply it.",
+        barChartHeight(checkedTiers.map((r) => tierLabel(r.value))),
+        (canvas) => barChart(canvas, checkedTiers.map((r) => tierLabel(r.value)), checkedTiers.map((r) => share(r)),
+          (v, i) => `${v}% (${number.format(checkedTiers[i].sites_using_qgds)} of ${number.format(checkedTiers[i].sites_checked)})`, 100),
+        tableDetails("Show data table", dataTable("QGDS use by brand tier", breakdownColumns("Brand tier"), tiers.map((r) => breakdownRow(tierLabel(r.value), r)))),
+        "Tiers come from the site list, not from the crawl, so they show where each site sits today.",
+      ));
+    }
+    root.append(
+      h("h3", {}, "QGDS use by department"),
+      h("p", {}, "Each site counts towards the department it is accountable to, including sites run by agencies within that department."),
+      dataTable("QGDS use by department", breakdownColumns("Department"), web.breakdowns.department.map((r) => breakdownRow(r.value ?? "No department recorded", r))),
+    );
+  }
+
   // Sites
   root.append(h("h3", {}, "Sites in the latest crawl"));
   if (web.sites.length === 0) {
@@ -248,8 +290,13 @@ function renderWeb(web) {
       if (!s.uses_qgds) return "Not using QGDS";
       return s.codebases.length ? s.codebases.map((c) => CODEBASE_LABELS[c] ?? c).join(", ") : CODEBASE_LABELS.unclear;
     };
-    const table = dataTable("Sites in the latest crawl", [{ label: "Site" }, { label: "Organisation" }, { label: "Result" }],
-      web.sites.map((s) => [s.url.replace(/^https?:\/\//, "").replace(/\/$/, ""), s.organisation ?? "Not recorded", result(s)]));
+    const table = dataTable("Sites in the latest crawl", [{ label: "Site" }, { label: "Organisation" }, { label: "Brand tier" }, { label: "Result" }],
+      web.sites.map((s) => [
+        s.url.replace(/^https?:\/\//, "").replace(/\/$/, "") + (s.kind === "app" ? " (app)" : ""),
+        s.organisation ?? "Not recorded",
+        s.brand_tier ? TIER_LABELS[s.brand_tier] : "Not recorded",
+        result(s),
+      ]));
     table.querySelectorAll("tbody th").forEach((th) => th.classList.add("url"));
     root.append(table);
   }

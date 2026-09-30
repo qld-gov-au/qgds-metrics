@@ -15,7 +15,8 @@
     "schema_version": {
       "enum": [
         "1.0",
-        "1.1"
+        "1.1",
+        "1.2"
       ]
     },
     "generated_at": {
@@ -127,6 +128,10 @@
               }
             }
           }
+        },
+        "breakdowns": {
+          "description": "Latest run totals grouped by each site's current brand tier and department. Added in 1.2.",
+          "$ref": "#/$defs/breakdowns"
         }
       }
     },
@@ -235,6 +240,31 @@
           "items": {
             "$ref": "#/$defs/codebase"
           }
+        },
+        "department": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Accountable department. Added in 1.2."
+        },
+        "brand_tier": {
+          "enum": [
+            null,
+            "master_brand",
+            "sub_brand",
+            "co_brand",
+            "endorsed",
+            "stand_alone"
+          ],
+          "description": "Tier in the QGDS brand architecture. Added in 1.2."
+        },
+        "kind": {
+          "enum": [
+            "website",
+            "app"
+          ],
+          "description": "Added in 1.2."
         }
       }
     },
@@ -473,6 +503,56 @@
         },
         "variable_uses": {
           "$ref": "#/$defs/count"
+        }
+      }
+    },
+    "breakdownRow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "value",
+        "sites_scanned",
+        "sites_checked",
+        "sites_using_qgds"
+      ],
+      "properties": {
+        "value": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "The tier or department. Null groups sites without one."
+        },
+        "sites_scanned": {
+          "$ref": "#/$defs/count"
+        },
+        "sites_checked": {
+          "$ref": "#/$defs/count"
+        },
+        "sites_using_qgds": {
+          "$ref": "#/$defs/count"
+        }
+      }
+    },
+    "breakdowns": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "brand_tier",
+        "department"
+      ],
+      "properties": {
+        "brand_tier": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/breakdownRow"
+          }
+        },
+        "department": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/breakdownRow"
+          }
         }
       }
     }

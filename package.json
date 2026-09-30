@@ -11,7 +11,7 @@
     "check": "npm run check:no-data && npm run typecheck && npm test && npm run test:contract",
     "check:no-data": "node scripts/check-no-data.ts",
     "typecheck": "tsc",
-    "test": "node --test \"crawler/test/**/*.test.ts\" \"db/test/**/*.test.ts\" \"figma/test/**/*.test.ts\"",
+    "test": "node --test \"crawler/test/**/*.test.ts\" \"db/test/**/*.test.ts\" \"figma/test/**/*.test.ts\" \"scripts/test/**/*.test.ts\"",
     "test:contract": "node scripts/check-contract.ts",
     "crawler:seeds": "node crawler/src/check-seeds.ts",
     "crawl": "node crawler/src/crawl.ts",

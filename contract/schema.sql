@@ -25,9 +25,16 @@ create index runs_source_finished_idx on runs (source, finished_at desc);
 create table sites (
   id            uuid primary key default gen_random_uuid(),
   url           text not null unique,
+  -- The agency that owns and runs the site.
   organisation  text,
   active        boolean not null default true,
-  created_at    timestamptz not null default now()
+  created_at    timestamptz not null default now(),
+  -- The accountable department, as named on the Queensland Government ministers and departments page.
+  department    text,
+  -- Tier in the QGDS brand architecture.
+  brand_tier    text check (brand_tier in ('master_brand', 'sub_brand', 'co_brand', 'endorsed', 'stand_alone')),
+  -- Apps are kept apart so they can carry manual data later.
+  kind          text not null default 'website' check (kind in ('website', 'app'))
 );
 
 -- One row per site per web run.

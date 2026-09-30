@@ -38,12 +38,13 @@ async function succeededRuns(supabase: SupabaseClient, source: "web" | "figma"):
 
 async function webResults(supabase: SupabaseClient, runIds: string[]): Promise<SiteResultRow[]> {
   if (runIds.length === 0) return [];
-  type Row = Omit<SiteResultRow, "url" | "organisation"> & { sites: { url: string; organisation: string | null } };
+  type SiteColumns = Pick<SiteResultRow, "url" | "organisation" | "department" | "brand_tier" | "kind">;
+  type Row = Omit<SiteResultRow, keyof SiteColumns> & { sites: SiteColumns };
   const rows = await all<Row>((from, to) =>
-    supabase.from("site_results").select("run_id, status, failure_type, uses_qgds, codebases, sites(url, organisation)")
+    supabase.from("site_results").select("run_id, status, failure_type, uses_qgds, codebases, sites(url, organisation, department, brand_tier, kind)")
       .in("run_id", runIds).order("run_id").order("site_id").range(from, to) as unknown as PromiseLike<{ data: Row[] | null; error: { code?: string } | null }>,
   );
-  return rows.map(({ sites, ...r }) => ({ ...r, url: sites.url, organisation: sites.organisation }));
+  return rows.map(({ sites, ...r }) => ({ ...r, ...sites }));
 }
 
 const supabase = serviceClient();

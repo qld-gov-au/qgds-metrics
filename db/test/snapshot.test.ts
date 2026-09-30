@@ -19,7 +19,7 @@ const runs = [
   { id: RUN_1, started_at: "2026-01-01T00:00:00Z", finished_at: "2026-01-01T00:05:00Z" },
 ];
 const result = (run_id: string, url: string, r: Partial<SiteResultRow>): SiteResultRow => ({
-  run_id, url, organisation: null, status: "ok", failure_type: null, uses_qgds: false, codebases: [], ...r,
+  run_id, url, organisation: null, department: null, brand_tier: null, kind: "website", status: "ok", failure_type: null, uses_qgds: false, codebases: [], ...r,
 });
 const results: SiteResultRow[] = [
   result(RUN_1, "https://site-a.example/", { uses_qgds: true, codebases: ["bootstrap"] }),
@@ -103,7 +103,7 @@ test("Figma totals leave out the library file", () => {
     ],
   });
   assertValid(s);
-  assert.equal(s.schema_version, "1.1");
+  assert.equal(s.schema_version, "1.2");
   assert.deepEqual(s.figma?.totals, { excludes: "library_file", component_instances: 960, style_uses: 500, variable_uses: 190 });
 });
 
@@ -111,4 +111,25 @@ test("Figma totals are null for runs without them", () => {
   const s = buildSnapshot({ ...empty, figmaRun: { id: FIGMA, started_at: "2026-01-09T00:00:00Z", finished_at: "2026-01-09T00:01:00Z" } });
   assertValid(s);
   assert.equal(s.figma?.totals, null);
+});
+
+test("breakdowns group the latest run by brand tier and department", () => {
+  const rows: SiteResultRow[] = [
+    result(RUN_2, "https://site-a.example/", { uses_qgds: true, codebases: ["bootstrap"], department: "Example department", brand_tier: "sub_brand" }),
+    result(RUN_2, "https://site-b.example/", { uses_qgds: false, department: "Example department", brand_tier: "endorsed" }),
+    result(RUN_2, "https://site-c.example/", { uses_qgds: true, department: "Other department", brand_tier: "sub_brand" }),
+    result(RUN_2, "https://site-d.example/", { status: "failed", failure_type: "timeout", uses_qgds: null }),
+    result(RUN_1, "https://site-a.example/", { uses_qgds: true, department: "Example department", brand_tier: "sub_brand" }),
+  ];
+  const s = buildSnapshot({ ...empty, webRuns: runs, webResults: rows });
+  assertValid(s);
+  assert.deepEqual(s.web?.breakdowns.brand_tier, [
+    { value: "sub_brand", sites_scanned: 2, sites_checked: 2, sites_using_qgds: 2 },
+    { value: "endorsed", sites_scanned: 1, sites_checked: 1, sites_using_qgds: 0 },
+    { value: null, sites_scanned: 1, sites_checked: 0, sites_using_qgds: 0 },
+  ]);
+  assert.deepEqual(s.web?.breakdowns.department.map((d) => [d.value, d.sites_scanned, d.sites_using_qgds]), [
+    ["Example department", 2, 1], ["Other department", 1, 1], [null, 1, 0],
+  ]);
+  assert.deepEqual(s.web?.sites[0], { url: "https://site-a.example/", organisation: null, department: "Example department", brand_tier: "sub_brand", kind: "website", status: "ok", failure_type: null, uses_qgds: true, codebases: ["bootstrap"] });
 });

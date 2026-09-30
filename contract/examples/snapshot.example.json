@@ -1,5 +1,5 @@
 {
-  "schema_version": "1.1",
+  "schema_version": "1.2",
   "generated_at": "2026-01-02T00:10:00Z",
   "web": {
     "run": {
@@ -18,6 +18,9 @@
       {
         "url": "https://site-a.example",
         "organisation": "example-agency",
+        "department": "Example department",
+        "brand_tier": "sub_brand",
+        "kind": "website",
         "status": "ok",
         "failure_type": null,
         "uses_qgds": true,
@@ -26,6 +29,9 @@
       {
         "url": "https://site-b.example",
         "organisation": "example-agency",
+        "department": "Example department",
+        "brand_tier": "endorsed",
+        "kind": "website",
         "status": "ok",
         "failure_type": null,
         "uses_qgds": false,
@@ -34,12 +40,26 @@
       {
         "url": "https://site-c.example",
         "organisation": null,
+        "department": null,
+        "brand_tier": null,
+        "kind": "app",
         "status": "failed",
         "failure_type": "timeout",
         "uses_qgds": null,
         "codebases": []
       }
     ],
+    "breakdowns": {
+      "brand_tier": [
+        { "value": "sub_brand", "sites_scanned": 1, "sites_checked": 1, "sites_using_qgds": 1 },
+        { "value": "endorsed", "sites_scanned": 1, "sites_checked": 1, "sites_using_qgds": 0 },
+        { "value": null, "sites_scanned": 1, "sites_checked": 0, "sites_using_qgds": 0 }
+      ],
+      "department": [
+        { "value": "Example department", "sites_scanned": 2, "sites_checked": 2, "sites_using_qgds": 1 },
+        { "value": null, "sites_scanned": 1, "sites_checked": 0, "sites_using_qgds": 0 }
+      ]
+    },
     "history": [
       {
         "run_id": "00000000-0000-4000-8000-000000000001",

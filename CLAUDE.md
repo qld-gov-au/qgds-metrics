@@ -25,6 +25,7 @@ The code is public. The data is private. Keep them separate:
 
 - **Never commit data.** `fixtures/`, `seeds.txt`, `.env` and any generated snapshot or build output must stay in `.gitignore`. A check script fails CI if any of them is tracked.
 - **Private storage.** Fixtures, seed lists and dashboard builds live in the private Supabase Storage bucket `metrics-data`. Use `npm run data:pull` before working and `npm run data:push` after changing fixtures.
+- **Site list.** The sites to crawl are in `fixtures/sites.csv`, with organisation, department, brand tier and kind for each. Load changes with `npm run sites:import -- fixtures/sites.csv`. Brand tiers follow the QGDS brand architecture, and department names follow the Queensland Government ministers and departments page.
 - **No names in public places.** Never put agency names, team names, site URLs or results in code, tests, comments, commit messages, pull requests, issues, README examples or contract examples. Use obvious placeholders such as `example-agency` and `https://site-a.example`.
 - **Quiet logs.** Scripts running in Actions log counts, durations and error types only, for example "Crawled 42 sites, 3 failures (2 timeouts, 1 DNS)". Write site-level detail to Supabase, never to the log.
 - **No artifacts with data.** Do not use `actions/upload-artifact` for fixtures, snapshots or dashboard builds.
