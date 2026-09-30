@@ -55,3 +55,19 @@ export function actionRows(runId: string, actions: ComponentAction[], window: { 
       detachments: r.detachments ?? 0,
     }));
 }
+
+// Per-file usage rows as the API returns them with group_by=file.
+export interface FileUsage { file_name: string; team_name?: string | null; usages: number }
+
+// Totals across all files and for the library file alone, found by exact file name.
+// Components must match exactly one file, because the library always uses its own
+// components. Styles and variables may match none. More than one match is ambiguous.
+export function libraryTotals(rows: FileUsage[], libraryFileName: string, requireMatch: boolean) {
+  const matches = rows.filter((r) => r.file_name === libraryFileName);
+  if (matches.length > 1) throw new Error(`${matches.length} files are named like the library. Nothing is excluded until this is resolved.`);
+  if (requireMatch && matches.length === 0) throw new Error("No file matches FIGMA_LIBRARY_FILE_NAME. Check it is the library file's exact name.");
+  return {
+    usages_all_files: rows.reduce((n, r) => n + (r.usages ?? 0), 0),
+    usages_library_file: matches[0]?.usages ?? 0,
+  };
+}

@@ -2,20 +2,22 @@
 //
 //   npm run figma
 //
-// Needs FIGMA_TOKEN (with library_analytics:read) and FIGMA_LIBRARY_FILE_KEY, which can be
-// the file key, the key with the file name after it, or the library's Figma URL.
+// Needs FIGMA_TOKEN (with library_analytics:read), FIGMA_LIBRARY_FILE_KEY (the file key,
+// the key with the file name after it, or the library's Figma URL) and
+// FIGMA_LIBRARY_FILE_NAME (the library file's exact name, used to leave it out of totals).
 // Logs counts only. Never logs the token or raw responses.
 import { loadEnv, requireEnv } from "../../scripts/env.ts";
 import { serviceClient } from "../../scripts/supabase.ts";
 import {
-  actionRows, parseFileKey, usageRows, weekWindow,
-  type ComponentAction, type ComponentUsage, type StyleUsage, type VariableUsage,
+  actionRows, libraryTotals, parseFileKey, usageRows, weekWindow,
+  type ComponentAction, type ComponentUsage, type FileUsage, type StyleUsage, type VariableUsage,
 } from "./figma.ts";
 
 loadEnv();
 const supabase = serviceClient();
 const token = requireEnv("FIGMA_TOKEN");
 const fileKey = parseFileKey(requireEnv("FIGMA_LIBRARY_FILE_KEY"));
+const libraryFileName = requireEnv("FIGMA_LIBRARY_FILE_NAME").trim();
 if (!fileKey) {
   console.error("FIGMA_LIBRARY_FILE_KEY does not contain a Figma file key. Use the key or the library's Figma URL.");
   process.exit(1);
@@ -72,16 +74,26 @@ if (runError) {
 }
 
 try {
-  const [components, styles, variables, actions] = await Promise.all([
+  const [components, styles, variables, actions, componentFiles, styleFiles, variableFiles] = await Promise.all([
     fetchAll<ComponentUsage>("component/usages", { group_by: "component" }),
     fetchAll<StyleUsage>("style/usages", { group_by: "style" }),
     fetchAll<VariableUsage>("variable/usages", { group_by: "variable" }),
     fetchAll<ComponentAction>("component/actions", { group_by: "component", start_date: window.startDate, end_date: window.endDate }),
+    fetchAll<FileUsage>("component/usages", { group_by: "file" }),
+    fetchAll<FileUsage>("style/usages", { group_by: "file" }),
+    fetchAll<FileUsage>("variable/usages", { group_by: "file" }),
   ]);
   const usage = usageRows(run.id, components, styles, variables);
   const weekly = actionRows(run.id, actions, window);
+  // Totals with the library file separated. Only counts are stored, not file or team names.
+  const totals = [
+    { run_id: run.id, asset_type: "component", ...libraryTotals(componentFiles, libraryFileName, true) },
+    { run_id: run.id, asset_type: "style", ...libraryTotals(styleFiles, libraryFileName, false) },
+    { run_id: run.id, asset_type: "variable", ...libraryTotals(variableFiles, libraryFileName, false) },
+  ];
   await insertInBatches("figma_usage", usage);
   await insertInBatches("figma_component_actions", weekly);
+  await insertInBatches("figma_usage_totals", totals);
 
   const { error } = await supabase.from("runs").update({ status: "succeeded", finished_at: new Date().toISOString() }).eq("id", run.id);
   if (error) throw new Error(`Could not mark run succeeded: ${error.code}`);
@@ -89,7 +101,8 @@ try {
   console.log(
     `Collected Figma analytics in ${Math.round((Date.now() - started) / 1000)}s: ` +
       `${components.length} components, ${styles.length} styles, ${variables.length} variables, ` +
-      `${weekly.length} weekly action rows over ${weeks} weeks (${window.startDate} to ${window.lastWeek}).`,
+      `${weekly.length} weekly action rows over ${weeks} weeks (${window.startDate} to ${window.lastWeek}). ` +
+      `Library file excluded from totals: ${totals.map((t) => `${Math.round((100 * t.usages_library_file) / Math.max(1, t.usages_all_files))}% of ${t.asset_type} use`).join(", ")}.`,
   );
 } catch (err) {
   await supabase.from("runs").update({ status: "failed", finished_at: new Date().toISOString() }).eq("id", run.id);

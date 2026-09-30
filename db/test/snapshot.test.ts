@@ -29,7 +29,7 @@ const results: SiteResultRow[] = [
   result(RUN_2, "https://site-c.example/", { status: "failed", failure_type: "timeout", uses_qgds: null }),
   result(RUN_2, "https://site-d.example/", { status: "skipped", failure_type: "robots_disallowed", uses_qgds: null }),
 ];
-const empty = { generatedAt: "2026-01-09T00:00:00Z", webRuns: [], webResults: [], figmaRun: null, figmaUsage: [], figmaActions: [] };
+const empty = { generatedAt: "2026-01-09T00:00:00Z", webRuns: [], webResults: [], figmaRun: null, figmaUsage: [], figmaActions: [], figmaTotals: [] };
 
 test("no runs gives null sections and a valid snapshot", () => {
   const s = buildSnapshot(empty);
@@ -90,4 +90,25 @@ test("Figma run with no action rows gives null component_actions", () => {
   const s = buildSnapshot({ ...empty, figmaRun: { id: FIGMA, started_at: "2026-01-09T00:00:00Z", finished_at: "2026-01-09T00:01:00Z" } });
   assertValid(s);
   assert.equal(s.figma?.component_actions, null);
+});
+
+test("Figma totals leave out the library file", () => {
+  const s = buildSnapshot({
+    ...empty,
+    figmaRun: { id: FIGMA, started_at: "2026-01-09T00:00:00Z", finished_at: "2026-01-09T00:01:00Z" },
+    figmaTotals: [
+      { asset_type: "component", usages_all_files: 1000, usages_library_file: 40 },
+      { asset_type: "style", usages_all_files: 500, usages_library_file: 0 },
+      { asset_type: "variable", usages_all_files: 200, usages_library_file: 10 },
+    ],
+  });
+  assertValid(s);
+  assert.equal(s.schema_version, "1.1");
+  assert.deepEqual(s.figma?.totals, { excludes: "library_file", component_instances: 960, style_uses: 500, variable_uses: 190 });
+});
+
+test("Figma totals are null for runs without them", () => {
+  const s = buildSnapshot({ ...empty, figmaRun: { id: FIGMA, started_at: "2026-01-09T00:00:00Z", finished_at: "2026-01-09T00:01:00Z" } });
+  assertValid(s);
+  assert.equal(s.figma?.totals, null);
 });
