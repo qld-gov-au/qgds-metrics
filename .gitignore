@@ -9,3 +9,4 @@ build/
 snapshots/
 dashboard/data/
 *.snapshot.json
+.DS_Store

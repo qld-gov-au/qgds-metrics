@@ -13,7 +13,7 @@ Examples use placeholders only, such as `example-agency` and `https://site-a.exa
 ## Tables
 
 - **`runs`**: one row per collector run. `source` is `web` or `figma`. A run is finished when `status` is `succeeded` and `finished_at` is set. Failed and running runs are never exported.
-- **`sites`**: the sites to crawl, with an optional organisation name.
+- **`sites`**: the sites to crawl. `organisation` is the agency that owns and runs the site. `department` is its accountable department, spelt as on the Queensland Government ministers and departments page. `brand_tier` is its tier in the QGDS brand architecture. `kind` is `website` or `app`.
 - **`site_results`**: one row per site per web run.
 - **`figma_usage`**: one row per QGDS library component, style or variable per Figma run.
 - **`figma_component_actions`**: weekly insertions and detachments for each QGDS library component per Figma run.
@@ -46,6 +46,19 @@ The export script writes one snapshot built from the latest succeeded run of eac
   - `by_codebase.unclear` counts sites using QGDS with no codebase identified.
 - `sites` lists each site URL and organisation. The build is private, so this is allowed. Remove or aggregate it before any public publishing.
 - `history` lists totals for every succeeded web run, oldest first, including the latest.
+- `breakdowns` groups the latest run's totals by brand tier and by department, using each site's current values. A `null` value groups sites without one. Percentages use `sites_checked`, as for the headline figures.
+
+### Brand tiers
+
+The tiers follow the QGDS brand architecture, which is organised by public perception rather than organisational structure. A statutory body run within a department, for example, has `organisation` set to the body (`example-agency`), `department` set to its accountable department (`Example department`) and `brand_tier` set to `co_brand`.
+
+| `brand_tier` | Covers |
+| --- | --- |
+| `master_brand` | Whole of government sites, apps and tools |
+| `sub_brand` | Departments and agencies, including divisions |
+| `co_brand` | Most statutory bodies, and joint federal and state initiatives |
+| `endorsed` | Programs, initiatives and approved campaigns |
+| `stand_alone` | Independent statutory bodies, such as tribunals, commissions and government corporations |
 - Figma `group` is the component set name for components, the style type for styles, and the collection name for variables.
 
 ### Figma totals and the library file
@@ -66,4 +79,4 @@ The export script writes one snapshot built from the latest succeeded run of eac
 
 ## Versioning
 
-`schema_version` is `1.1`. Version 1.1 added the optional `figma.totals`. Adding an optional field is a minor change (`1.1`). Removing or renaming a field, or changing its meaning, is a major change (`2.0`) and needs the dashboard updated in the same change.
+`schema_version` is `1.2`. Version 1.1 added the optional `figma.totals`. Version 1.2 added `department`, `brand_tier` and `kind` to each site, and the optional `web.breakdowns`. Adding an optional field is a minor change (`1.1`). Removing or renaming a field, or changing its meaning, is a major change (`2.0`) and needs the dashboard updated in the same change.

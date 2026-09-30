@@ -26,20 +26,20 @@ export async function checkSite(browser: Browser, url: string): Promise<SiteResu
     duration_ms: Date.now() - started,
   });
 
-  const robots = await checkRobots(url);
-  if (robots !== "allowed") return fail("skipped", "robots_disallowed");
-
   // A fresh context per site, discarded afterwards, so no cookies carry over or persist.
   const context = await browser.newContext({ userAgent: USER_AGENT, viewport: VIEWPORT });
   try {
     const page = await context.newPage();
-    const assetPaths = new Set<string>();
-    let css = emptyCss();
-    const pendingCss: Promise<void>[] = [];
-
     await page.route("**/*", (route) =>
       BLOCKED_RESOURCE_TYPES.has(route.request().resourceType()) ? route.abort() : route.continue(),
     );
+
+    const robots = await checkRobots(url, page);
+    if (robots !== "allowed") return fail("skipped", "robots_disallowed");
+
+    const assetPaths = new Set<string>();
+    let css = emptyCss();
+    const pendingCss: Promise<void>[] = [];
     page.on("response", (response) => {
       const type = response.request().resourceType();
       if (type !== "stylesheet" && type !== "script") return;

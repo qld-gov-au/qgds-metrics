@@ -15,6 +15,9 @@ export interface SiteResultRow {
   codebases: string[];
   url: string;
   organisation: string | null;
+  department: string | null;
+  brand_tier: string | null;
+  kind: "website" | "app";
 }
 
 export interface FigmaUsageRow {
@@ -81,6 +84,18 @@ export function webTotals(results: SiteResultRow[]) {
 const run = (r: RunRow) => ({ id: r.id, started_at: r.started_at, finished_at: r.finished_at });
 const byFinished = (a: RunRow, b: RunRow) => a.finished_at.localeCompare(b.finished_at);
 
+// Latest run totals grouped by one site attribute, largest group first. Null groups sites without a value.
+export function breakdown(results: SiteResultRow[], key: "brand_tier" | "department") {
+  const groups = new Map<string | null, SiteResultRow[]>();
+  for (const r of results) groups.set(r[key], [...(groups.get(r[key]) ?? []), r]);
+  return [...groups.entries()]
+    .map(([value, rows]) => {
+      const t = webTotals(rows);
+      return { value, sites_scanned: t.sites_scanned, sites_checked: t.sites_checked, sites_using_qgds: t.sites_using_qgds };
+    })
+    .sort((a, b) => (a.value === null ? 1 : b.value === null ? -1 : b.sites_scanned - a.sites_scanned || a.value.localeCompare(b.value)));
+}
+
 function buildWeb(runs: RunRow[], results: SiteResultRow[]) {
   if (runs.length === 0) return null;
   const ordered = [...runs].sort(byFinished);
@@ -93,11 +108,15 @@ function buildWeb(runs: RunRow[], results: SiteResultRow[]) {
     sites: latestResults.map((r) => ({
       url: r.url,
       organisation: r.organisation,
+      department: r.department,
+      brand_tier: r.brand_tier,
+      kind: r.kind,
       status: r.status,
       failure_type: r.failure_type,
       uses_qgds: r.uses_qgds,
       codebases: r.codebases,
     })),
+    breakdowns: { brand_tier: breakdown(latestResults, "brand_tier"), department: breakdown(latestResults, "department") },
     history: ordered.map((r) => ({ run_id: r.id, finished_at: r.finished_at, totals: webTotals(resultsFor(r.id)) })),
   };
 }
@@ -155,7 +174,7 @@ function buildFigma(figmaRun: RunRow | null, usage: FigmaUsageRow[], actions: Fi
 
 export function buildSnapshot(input: SnapshotInput) {
   return {
-    schema_version: "1.1" as const,
+    schema_version: "1.2" as const,
     generated_at: input.generatedAt,
     web: buildWeb(input.webRuns, input.webResults),
     figma: buildFigma(input.figmaRun, input.figmaUsage, input.figmaActions, input.figmaTotals),
