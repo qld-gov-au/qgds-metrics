@@ -1,10 +1,10 @@
 name: Build dashboard
 
-# Exports the snapshot from Supabase, builds the dashboard and uploads it to the
-# private metrics-data bucket. Runs monthly, and when `npm run monthly` starts it
-# after a crawl.
+# Collects Figma Library Analytics, exports the snapshot from Supabase, builds the
+# dashboard and uploads it to the private metrics-data bucket. Runs monthly, and when
+# `npm run monthly` starts it after a crawl.
 #
-# It does not crawl. Many sites block requests from cloud data centres such as
+# It does not crawl websites. Many sites block requests from cloud data centres such as
 # GitHub's runners, so crawls run from a work network with `npm run monthly`.
 #
 # This repository is public. Logs show counts, durations and error types only,
@@ -43,6 +43,14 @@ jobs:
       - run: npm ci --ignore-scripts
 
       - run: npm run check:no-data
+
+      - name: Collect Figma analytics
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          FIGMA_TOKEN: ${{ secrets.FIGMA_TOKEN }}
+          FIGMA_LIBRARY_FILE_KEY: ${{ secrets.FIGMA_LIBRARY_FILE_KEY }}
+        run: npm run figma
 
       - name: Export snapshot
         env:
