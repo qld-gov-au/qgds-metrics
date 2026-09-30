@@ -1,12 +1,16 @@
 name: Build dashboard
 
 # Exports the snapshot from Supabase, builds the dashboard and uploads it to the
-# private metrics-data bucket. Optionally crawls all active sites first.
+# private metrics-data bucket. Crawls all active sites first on the monthly schedule,
+# or when the crawl box is ticked on a manual run.
 #
 # This repository is public. Logs show counts, durations and error types only,
 # and nothing is uploaded to GitHub. Do not add actions/upload-artifact or Pages.
 
 on:
+  # 17:00 UTC on the 1st is 3 am on the 2nd in Brisbane, a quiet time for the sites crawled.
+  schedule:
+    - cron: "0 17 1 * *"
   workflow_dispatch:
     inputs:
       crawl:
@@ -43,11 +47,11 @@ jobs:
       - run: npm run check:no-data
 
       - name: Install Chromium
-        if: inputs.crawl
+        if: github.event_name == 'schedule' || inputs.crawl
         run: npx playwright install --with-deps chromium
 
       - name: Crawl
-        if: inputs.crawl
+        if: github.event_name == 'schedule' || inputs.crawl
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}

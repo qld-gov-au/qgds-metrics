@@ -41,7 +41,7 @@ npm run dashboard:dev
 
 To preview with placeholder data instead, run `npm run dashboard:build -- --snapshot contract/examples/snapshot.example.json`.
 
-The Build dashboard workflow (run manually from the Actions tab) uploads `metrics-data/builds/<run-timestamp>/qgds-metrics-dashboard.zip` to Supabase Storage. Team members download it from the Supabase dashboard, unzip it and open `index.html`. It works without a server.
+The Build dashboard workflow crawls and rebuilds monthly, and can also be run manually from the Actions tab. It uploads `metrics-data/builds/<run-timestamp>/qgds-metrics-dashboard.zip` to Supabase Storage. Team members download it from the Supabase dashboard, unzip it and open `index.html`. It works without a server.
 
 ## Repository structure
 
