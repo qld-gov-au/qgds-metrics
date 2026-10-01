@@ -59,7 +59,12 @@ figure.chart figcaption strong {
 .chart-note { font-size: var(--qgds-font-size-xs); color: var(--qgds-color-text-lighter); }
 figure.chart > qgds-details { display: block; margin-block-start: var(--qgds-vspace-paragraph); }
 
-/* Tables are qgds-table elements. Only number alignment is added. */
+/* Tables are qgds-table elements. Only number alignment is added.
+   qgds-table caps its height (640px, 1000px from 700px) and scrolls inside that box.
+   These tables are short, and the site list is paginated, so the cap would only add a
+   scroll box inside the page. The component's own variables remove it. Sideways scrolling
+   on narrow screens stays, as a focusable, labelled region. */
+qgds-table { --table-scroll-max-height-mobile: none; --table-scroll-max-height-desktop: none; }
 table .num { text-align: end; font-variant-numeric: tabular-nums; }
 table .url { overflow-wrap: anywhere; }
 qgds-details qgds-table { display: block; margin-block-start: var(--qgds-vspace-paragraph); }
