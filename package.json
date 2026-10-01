@@ -20,7 +20,7 @@
     "monthly": "node scripts/monthly.ts",
     "export": "node db/export-snapshot.ts",
     "dashboard:build": "node dashboard/build.ts",
-    "dashboard:dev": "npm run dashboard:build && node dashboard/serve.ts",
+    "dashboard:dev": "node dashboard/watch.ts",
     "dashboard:upload": "node db/upload-build.ts",
     "sites:import": "node db/import-sites.ts",
     "db:verify": "node db/verify.ts",

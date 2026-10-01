@@ -40,6 +40,8 @@ npm run export
 npm run dashboard:dev
 ```
 
+Then open http://localhost:4173. `dashboard:dev` rebuilds when anything in `dashboard/src` or the data snapshot changes and refreshes the browser, so leave it running while you work. Stop it with Ctrl+C. Run `npm run export` again only when there is new data.
+
 To preview with placeholder data instead, run `npm run dashboard:build -- --snapshot contract/examples/snapshot.example.json`.
 
 The Build dashboard workflow uploads `metrics-data/builds/<run-timestamp>/qgds-metrics-dashboard.zip` to Supabase Storage. Team members download it from the Supabase dashboard, unzip it and open `index.html`. It works without a server.
