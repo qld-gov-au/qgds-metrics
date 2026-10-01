@@ -47,20 +47,26 @@ const date = (iso) => new Date(iso).toLocaleDateString("en-AU", { timeZone: "Aus
 const plural = (n, one, many) => `${number.format(n)} ${n === 1 ? one : many}`;
 
 function alert(variant, heading, text) {
-  return h("qgds-inpage-alert", { variant, heading, "heading-level": 3, class: "empty" }, h("p", {}, text));
+  return h("qgds-inpage-alert", { variant, heading, "heading-level": 3 }, h("p", {}, text));
 }
 
+// Summary figures as QGDS no-action cards: the label is the card heading.
 function statTiles(tiles) {
   return h("ul", { class: "stats" }, tiles.map((t) =>
-    h("li", { class: "stat" }, h("p", { class: "stat-label" }, t.label), h("p", { class: "stat-value" }, t.value), t.detail ? h("p", { class: "stat-detail" }, t.detail) : null)));
+    h("li", {}, h("qgds-card", { action: "none", heading: t.label, "heading-level": "h3", "is-equal-height": true },
+      h("p", { class: "stat-value" }, t.value), t.detail ? h("p", {}, t.detail) : null))));
 }
 
+// A native table inside qgds-table, which applies QGDS table styling.
+function tableRows(columns, rows) {
+  return rows.map((row) => h("tr", {}, columns.map((c, i) => (i === 0 ? h("th", { scope: "row", class: c.cls ?? null }, row[i]) : h("td", { class: c.num ? "num" : c.cls ?? null }, row[i])))));
+}
 function dataTable(caption, columns, rows) {
-  return h("div", { class: "table-wrap" },
-    h("table", { class: "data" },
+  return h("qgds-table", { "is-striped": true },
+    h("table", {},
       h("caption", { class: "visually-hidden" }, caption),
       h("thead", {}, h("tr", {}, columns.map((c) => h("th", { scope: "col", class: c.num ? "num" : null }, c.label)))),
-      h("tbody", {}, rows.map((row) => h("tr", {}, columns.map((c, i) => (i === 0 ? h("th", { scope: "row" }, row[i]) : h("td", { class: c.num ? "num" : c.cls ?? null }, row[i]))))))));
+      h("tbody", {}, tableRows(columns, rows))));
 }
 
 function tableDetails(summary, table) {
@@ -103,13 +109,14 @@ function wrapLabel(text, width = 18) {
   return lines;
 }
 
-// Chart height that gives every bar room for the longest label at the narrowest wrap.
-// Chart.js gives all bars the same height, so size by the label with the most lines.
-const barChartHeight = (labels) => labels.length * Math.max(44, ...labels.map((l) => wrapLabel(l, 14).length * 18 + 22)) + 40;
+// Chart height that gives every bar room for its longest label. Chart.js gives all bars the
+// same height, so size by the label with the most lines, at the wrap width the chart will use.
+const labelWrap = () => (window.innerWidth < 560 ? 14 : window.innerWidth < 900 ? 18 : 26);
+const barChartHeight = (labels) => labels.length * Math.max(44, ...labels.map((l) => wrapLabel(l, labelWrap()).length * 18 + 22)) + 40;
 
-function barChart(canvas, labels, values, format, max) {
+function barChart(canvas, labels, values, format, max, fullLabels = labels) {
   // Narrow screens get shorter lines, so labels leave room for the bars.
-  const wrapped = labels.map((l) => wrapLabel(l, canvas.clientWidth < 480 ? 14 : 18));
+  const wrapped = labels.map((l) => wrapLabel(l, labelWrap()));
   // Reserve room after the longest bar for the widest value label, so none is clipped.
   const measure = canvas.getContext("2d");
   measure.font = `600 14px ${token("--qgds-font-family", "sans-serif")}`;
@@ -143,7 +150,7 @@ function barChart(canvas, labels, values, format, max) {
       },
       plugins: {
         legend: { display: false },
-        tooltip: { callbacks: { title: (items) => labels[items[0].dataIndex], label: (item) => format(item.raw, item.dataIndex) } },
+        tooltip: { callbacks: { title: (items) => fullLabels[items[0].dataIndex], label: (item) => format(item.raw, item.dataIndex) } },
         valueLabels: { color: token("--qgds-color-text-default", "#353535"), fontFamily: token("--qgds-font-family", "sans-serif"), format },
       },
     },
@@ -273,33 +280,78 @@ function renderWeb(web) {
         "Tiers come from the site list, not from the crawl, so they show where each site sits today.",
       ));
     }
-    root.append(
-      h("h3", {}, "QGDS use by department"),
-      h("p", {}, "Each site counts towards the department it is accountable to, including sites run by agencies within that department."),
-      dataTable("QGDS use by department", breakdownColumns("Department"), web.breakdowns.department.map((r) => breakdownRow(r.value ?? "No department recorded", r))),
-    );
-  }
-
-  // Sites
-  root.append(h("h3", {}, "Sites in the latest crawl"));
-  if (web.sites.length === 0) {
-    root.append(alert("info", "No sites in this crawl", "The latest crawl completed without any sites."));
-  } else {
-    const result = (s) => {
-      if (s.status !== "ok") return `Not checked, ${FAILURE_LABELS[s.failure_type] ?? "unknown reason"}`;
-      if (!s.uses_qgds) return "Not using QGDS";
-      return s.codebases.length ? s.codebases.map((c) => CODEBASE_LABELS[c] ?? c).join(", ") : CODEBASE_LABELS.unclear;
+    // A bar per department, sorted by share. Not a pie: each value is that department's own
+    // rate, so the parts do not add up to a whole, and 26 slices would need 26 colours.
+    const departments = web.breakdowns.department
+      .filter((r) => r.sites_checked > 0)
+      .sort((a, b) => (a.value === null) - (b.value === null) || share(b) - share(a) || b.sites_checked - a.sites_checked);
+    // Short labels for the chart: drop "Department of" and stop at a word boundary near
+    // 30 characters. Full names are in the tooltip and the data table.
+    const shortName = (v) => {
+      if (v === null) return "No department recorded";
+      const name = v.replace(/^Department of (the )?/, "");
+      if (name.length <= 32) return name;
+      return name.slice(0, 32).replace(/[\s,]+\S*$/, "") + "…";
     };
-    const table = dataTable("Sites in the latest crawl", [{ label: "Site" }, { label: "Organisation" }, { label: "Brand tier" }, { label: "Result" }],
-      web.sites.map((s) => [
-        s.url.replace(/^https?:\/\//, "").replace(/\/$/, "") + (s.kind === "app" ? " (app)" : ""),
-        s.organisation ?? "Not recorded",
-        s.brand_tier ? TIER_LABELS[s.brand_tier] : "Not recorded",
-        result(s),
-      ]));
-    table.querySelectorAll("tbody th").forEach((th) => th.classList.add("url"));
-    root.append(table);
+    if (departments.length === 0) {
+      root.append(h("h3", {}, "QGDS use by department"), alert("info", "No departments to compare", "No checked sites in the latest crawl have a department recorded."));
+    } else {
+      root.append(chartFigure(
+        "QGDS use by department",
+        "The share of each department's checked sites that use QGDS, including sites run by agencies within the department. Highest first.",
+        barChartHeight(departments.map((r) => shortName(r.value))),
+        (canvas) => barChart(canvas, departments.map((r) => shortName(r.value)), departments.map((r) => share(r)),
+          (v, i) => `${v}% (${number.format(departments[i].sites_using_qgds)} of ${number.format(departments[i].sites_checked)})`, 100,
+          departments.map((r) => r.value ?? "No department recorded")),
+        tableDetails("Show data table", dataTable("QGDS use by department", breakdownColumns("Department"), web.breakdowns.department.map((r) => breakdownRow(r.value ?? "No department recorded", r)))),
+        "Departments with few sites can swing a long way with one site, so check the counts beside each bar.",
+      ));
+    }
   }
+}
+
+// All sites, a page at a time. Last on the page, so it does not push the charts down.
+const SITES_PER_PAGE = 15;
+function renderSites(web) {
+  const root = document.getElementById("sites");
+  root.replaceChildren();
+  if (!web || web.sites.length === 0) {
+    root.append(alert("info", "No sites to show", "Sites appear here after the first successful crawl."));
+    return;
+  }
+  const result = (s) => {
+    if (s.status !== "ok") return `Not checked, ${FAILURE_LABELS[s.failure_type] ?? "unknown reason"}`;
+    if (!s.uses_qgds) return "Not using QGDS";
+    return s.codebases.length ? s.codebases.map((c) => CODEBASE_LABELS[c] ?? c).join(", ") : CODEBASE_LABELS.unclear;
+  };
+  const columns = [{ label: "Site", cls: "url" }, { label: "Organisation" }, { label: "Brand tier" }, { label: "Result" }];
+  const address = (s) => s.url.replace(/^https?:\/\//, "").replace(/^www\./, "");
+  const rows = [...web.sites].sort((a, b) => address(a).localeCompare(address(b))).map((s) => [
+    s.url.replace(/^https?:\/\//, "").replace(/\/$/, "") + (s.kind === "app" ? " (app)" : ""),
+    s.organisation ?? "Not recorded",
+    s.brand_tier ? TIER_LABELS[s.brand_tier] : "Not recorded",
+    result(s),
+  ]);
+  const pages = Math.ceil(rows.length / SITES_PER_PAGE);
+  const table = dataTable("Sites in the latest crawl", columns, []);
+  const tbody = table.querySelector("tbody");
+  const status = h("p", { class: "pager-status", "aria-live": "polite" });
+  const pager = pages > 1 ? h("qgds-pagination", { "total-pages": pages, "current-page": 1, "link-base": "#sites-page-", "aria-label": "Sites pages" }) : null;
+  const show = (page) => {
+    const first = (page - 1) * SITES_PER_PAGE;
+    tbody.replaceChildren(...tableRows(columns, rows.slice(first, first + SITES_PER_PAGE)));
+    status.textContent = `Showing ${number.format(first + 1)} to ${number.format(Math.min(first + SITES_PER_PAGE, rows.length))} of ${plural(rows.length, "site", "sites")}.`;
+    pager?.setAttribute("current-page", page);
+  };
+  // Change page in place instead of following the link.
+  pager?.addEventListener("qgds-navigate", (event) => {
+    event.preventDefault();
+    const page = Math.min(Math.max(1, Number(event.detail?.requestedPage) || 1), pages);
+    show(page);
+    table.scrollIntoView({ block: "nearest" });
+  });
+  root.append(h("p", {}, `Every site in the crawl observed ${dateTime(web.run.finished_at)}, in address order.`), status, table, pager);
+  show(1);
 }
 
 function renderFigma(figma) {
@@ -406,7 +458,7 @@ function main() {
   // Set by data/snapshot.js, which loads before this script.
   const snapshot = window.QGDS_METRICS_SNAPSHOT;
   if (!snapshot || typeof snapshot !== "object") {
-    for (const id of ["web", "figma"]) {
+    for (const id of ["web", "figma", "sites"]) {
       document.getElementById(id).replaceChildren(alert("error", "Data could not be loaded", "The snapshot file is missing or unreadable. Run the export, then rebuild the dashboard."));
     }
     return;
@@ -419,6 +471,7 @@ function main() {
   chartDefaults();
   renderWeb(snapshot.web);
   renderFigma(snapshot.figma);
+  renderSites(snapshot.web);
 }
 
 main();
