@@ -13,15 +13,14 @@
   <script src="app.js" defer></script>
 </head>
 <body class="qgds qgds-palette-default">
-  <qgds-header site-name="QGDS metrics" site-url="./" hide-mobile-bottom-row></qgds-header>
+  <qgds-header site-url="./" hide-mobile-bottom-row></qgds-header>
+
+  <qgds-banner variant="basic" palette="deep" heading="QGDS metrics">
+    <p>Observed use of the Queensland Government Design System on public websites and in the Figma library. This dashboard is a working concept.</p>
+    <p id="generated"></p>
+  </qgds-banner>
 
   <main id="main" class="qgds-container qgds-content">
-    <section class="intro">
-      <h1>QGDS metrics</h1>
-      <p class="lead">Observed use of the Queensland Government Design System on public websites and in the Figma library. This dashboard is a working concept.</p>
-      <p id="generated" class="meta"></p>
-    </section>
-
     <section aria-labelledby="web-heading">
       <h2 id="web-heading">Websites</h2>
       <div id="web"><p>Loading.</p></div>

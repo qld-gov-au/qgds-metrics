@@ -12,8 +12,10 @@ body {
 
 main { padding-block: var(--qgds-vspace-section-padding) var(--qgds-vspace-section-margin); }
 
-/* Sections sit a section margin apart, the same rhythm QGDS uses between page sections. */
+/* Sections sit a section margin apart, the same rhythm QGDS uses between page sections.
+   That margin already separates them, so a heading that starts a section adds no space. */
 main > section + section { margin-block-start: var(--qgds-vspace-section-margin); }
+main.qgds-content > section > :is(h2, h3):first-child { margin-block-start: 0; }
 
 /* QGDS sets heading-to-text spacing with zero-specificity rules that its paragraph rules
    can override, and only for text directly after a heading. This applies the same token,
@@ -22,8 +24,6 @@ main > section + section { margin-block-start: var(--qgds-vspace-section-margin)
 main.qgds-content :is(h1, h2, h3, h4) + * { margin-block-start: var(--qgds-vspace-heading-text); }
 main.qgds-content section > div > :first-child { margin-block-start: 0; }
 
-.lead { font-size: var(--qgds-font-size-md); max-inline-size: 48rem; }
-.meta { color: var(--qgds-color-text-lighter); font-size: var(--qgds-font-size-xs); }
 
 /* Summary cards: a grid of no-action qgds-card elements. */
 .stats {
