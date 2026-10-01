@@ -18,7 +18,10 @@ export async function checkRobots(url: string, page: Page): Promise<RobotsDecisi
   const response = await page.goto(robotsUrl, { waitUntil: "domcontentloaded", timeout: ROBOTS_TIMEOUT_MS }).catch(() => null);
   if (!response || response.status() >= 500) return "unreachable";
   if (!response.ok()) return "allowed";
-  return decide(robotsUrl, await response.text(), url);
+  // Some sites answer /robots.txt with a page that immediately redirects elsewhere. Its body
+  // is then unreadable, and it is not a robots file, so treat it as no robots.txt.
+  const text = await response.text().catch(() => "");
+  return decide(robotsUrl, text, url);
 }
 
 export function decide(robotsUrl: string, text: string, url: string): RobotsDecision {
