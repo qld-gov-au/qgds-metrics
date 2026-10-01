@@ -1,4 +1,6 @@
-/* Layout only. Colours, type and radii come from QGDS tokens. */
+/* Spacing, type and tables come from QGDS. Main has the qgds-content class, which applies
+   the QGDS vertical rhythm (heading to text, paragraphs, components). This file only adds
+   layout that QGDS does not provide. */
 
 body {
   margin: 0;
@@ -8,58 +10,61 @@ body {
   line-height: var(--qgds-line-height-default);
 }
 
-main { padding-block-end: 4rem; }
+main { padding-block: var(--qgds-vspace-section-padding) var(--qgds-vspace-section-margin); }
 
-/* qgds-container sets the side padding. Sections only add vertical rhythm. */
-.section { margin-block-start: 3.5rem; }
-.section.intro { margin-block-start: 2.5rem; }
-.section > h2 { margin-block-end: 0.5rem; }
+/* Sections sit a section margin apart, the same rhythm QGDS uses between page sections. */
+main > section + section { margin-block-start: var(--qgds-vspace-section-margin); }
+
+/* QGDS sets heading-to-text spacing with zero-specificity rules that its paragraph rules
+   can override, and only for text directly after a heading. This applies the same token,
+   --qgds-vspace-heading-text (1rem, 1.5rem from 992px), after every heading, including
+   where a section's content sits in a wrapper element. */
+main.qgds-content :is(h1, h2, h3, h4) + * { margin-block-start: var(--qgds-vspace-heading-text); }
+main.qgds-content section > div > :first-child { margin-block-start: 0; }
+
 .lead { font-size: var(--qgds-font-size-md); max-inline-size: 48rem; }
 .meta { color: var(--qgds-color-text-lighter); font-size: var(--qgds-font-size-xs); }
 
-/* Stat tiles */
+/* Summary cards: a grid of no-action qgds-card elements. */
 .stats {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
   gap: var(--qgds-grid-gutter, 1.5rem);
-  margin-block: 1.5rem 2.5rem;
+  margin-block-start: var(--qgds-vspace-component);
   padding: 0;
   list-style: none;
 }
-.stat {
-  border: 1px solid var(--qgds-color-border-alt, var(--qgds-color-border));
-  border-radius: var(--qgds-border-radius-xs);
-  padding: 1.25rem 1.5rem;
-  background: var(--qgds-color-background);
-}
-.stat-label { margin: 0; font-size: var(--qgds-font-size-xs); color: var(--qgds-color-text-lighter); }
+.stats > li { margin: 0; display: flex; }
+.stats qgds-card { flex: 1; }
 .stat-value {
-  margin: 0.25rem 0 0;
+  margin: 0;
   font-size: var(--qgds-font-size-xxl);
   font-weight: 600;
   line-height: var(--qgds-line-height-heading);
   color: var(--qgds-color-text-heading);
   font-variant-numeric: tabular-nums;
 }
-.stat-detail { margin: 0.25rem 0 0; font-size: var(--qgds-font-size-xs); }
+.stat-value + p { margin-block-start: var(--qgds-vspace-label); }
 
 /* Charts */
-figure.chart { margin: 0 0 2.5rem; max-inline-size: 56rem; }
-figure.chart figcaption { margin-block-end: 0.75rem; }
-figure.chart figcaption strong { display: block; font-size: var(--qgds-font-size-md); color: var(--qgds-color-text-heading); }
-.chart-box { position: relative; inline-size: 100%; }
-.chart-note { font-size: var(--qgds-font-size-xs); color: var(--qgds-color-text-lighter); margin-block: 0.5rem 1rem; }
+figure.chart { margin-inline: 0; max-inline-size: 56rem; }
+figure.chart figcaption strong {
+  display: block;
+  font-size: var(--qgds-font-size-md);
+  line-height: var(--qgds-line-height-heading);
+  color: var(--qgds-color-text-heading);
+  margin-block-end: var(--qgds-vspace-label);
+}
+.chart-box { position: relative; inline-size: 100%; margin-block-start: var(--qgds-vspace-heading-text); }
+.chart-note { font-size: var(--qgds-font-size-xs); color: var(--qgds-color-text-lighter); }
+figure.chart > qgds-details { display: block; margin-block-start: var(--qgds-vspace-paragraph); }
 
-/* Tables */
-.table-wrap { overflow-x: auto; }
-table.data { border-collapse: collapse; inline-size: 100%; font-variant-numeric: tabular-nums; }
-table.data th, table.data td { text-align: start; padding: 0.5rem 0.75rem; border-block-end: 1px solid var(--qgds-color-border-alt, var(--qgds-color-border)); vertical-align: top; }
-table.data th[scope="col"] { font-weight: 600; }
-table.data td.num, table.data th.num { text-align: end; }
-table.data td.url { overflow-wrap: anywhere; }
+/* Tables are qgds-table elements. Only number alignment is added. */
+table .num { text-align: end; font-variant-numeric: tabular-nums; }
+table .url { overflow-wrap: anywhere; }
+qgds-details qgds-table { display: block; margin-block-start: var(--qgds-vspace-paragraph); }
 
-.empty { margin-block: 1rem 2rem; }
-h3 { margin-block-start: 2.5rem; }
+.pager-status { color: var(--qgds-color-text-lighter); font-size: var(--qgds-font-size-xs); }
 
 .visually-hidden {
   position: absolute !important;
