@@ -16,7 +16,8 @@
       "enum": [
         "1.0",
         "1.1",
-        "1.2"
+        "1.2",
+        "1.3"
       ]
     },
     "generated_at": {
@@ -431,6 +432,34 @@
                   "string",
                   "null"
                 ]
+              },
+              "insertions": {
+                "$ref": "#/$defs/count"
+              },
+              "detachments": {
+                "$ref": "#/$defs/count"
+              },
+              "detach_rate": {
+                "$ref": "#/$defs/detachRate"
+              }
+            }
+          }
+        },
+        "by_team": {
+          "description": "Each team summed over the period, most detachments first. Added in 1.3.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "name",
+              "insertions",
+              "detachments",
+              "detach_rate"
+            ],
+            "properties": {
+              "name": {
+                "type": "string"
               },
               "insertions": {
                 "$ref": "#/$defs/count"

@@ -9,8 +9,8 @@
 import { loadEnv, requireEnv } from "../../scripts/env.ts";
 import { serviceClient } from "../../scripts/supabase.ts";
 import {
-  actionRows, libraryTotals, parseFileKey, usageRows, weekWindow,
-  type ComponentAction, type ComponentUsage, type FileUsage, type StyleUsage, type VariableUsage,
+  actionRows, libraryTotals, parseFileKey, teamActionRows, usageRows, weekWindow,
+  type ComponentAction, type ComponentUsage, type FileUsage, type StyleUsage, type TeamAction, type VariableUsage,
 } from "./figma.ts";
 
 loadEnv();
@@ -74,7 +74,7 @@ if (runError) {
 }
 
 try {
-  const [components, styles, variables, actions, componentFiles, styleFiles, variableFiles] = await Promise.all([
+  const [components, styles, variables, actions, componentFiles, styleFiles, variableFiles, teamActions] = await Promise.all([
     fetchAll<ComponentUsage>("component/usages", { group_by: "component" }),
     fetchAll<StyleUsage>("style/usages", { group_by: "style" }),
     fetchAll<VariableUsage>("variable/usages", { group_by: "variable" }),
@@ -82,6 +82,7 @@ try {
     fetchAll<FileUsage>("component/usages", { group_by: "file" }),
     fetchAll<FileUsage>("style/usages", { group_by: "file" }),
     fetchAll<FileUsage>("variable/usages", { group_by: "file" }),
+    fetchAll<TeamAction>("component/actions", { group_by: "team", start_date: window.startDate, end_date: window.endDate }),
   ]);
   const usage = usageRows(run.id, components, styles, variables);
   const weekly = actionRows(run.id, actions, window);
@@ -94,6 +95,9 @@ try {
   await insertInBatches("figma_usage", usage);
   await insertInBatches("figma_component_actions", weekly);
   await insertInBatches("figma_usage_totals", totals);
+  // Team names are stored, never logged.
+  const teams = teamActionRows(run.id, teamActions, window);
+  await insertInBatches("figma_team_actions", teams);
 
   const { error } = await supabase.from("runs").update({ status: "succeeded", finished_at: new Date().toISOString() }).eq("id", run.id);
   if (error) throw new Error(`Could not mark run succeeded: ${error.code}`);
@@ -101,7 +105,8 @@ try {
   console.log(
     `Collected Figma analytics in ${Math.round((Date.now() - started) / 1000)}s: ` +
       `${components.length} components, ${styles.length} styles, ${variables.length} variables, ` +
-      `${weekly.length} weekly action rows over ${weeks} weeks (${window.startDate} to ${window.lastWeek}). ` +
+      `${weekly.length} weekly action rows over ${weeks} weeks (${window.startDate} to ${window.lastWeek}), ` +
+      `${new Set(teams.map((t) => t.team_name)).size} teams. ` +
       `Library file excluded from totals: ${totals.map((t) => `${Math.round((100 * t.usages_library_file) / Math.max(1, t.usages_all_files))}% of ${t.asset_type} use`).join(", ")}.`,
   );
 } catch (err) {

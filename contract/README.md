@@ -18,6 +18,7 @@ Examples use placeholders only, such as `example-agency` and `https://site-a.exa
 - **`figma_usage`**: one row per QGDS library component, style or variable per Figma run.
 - **`figma_component_actions`**: weekly insertions and detachments for each QGDS library component per Figma run.
 - **`figma_usage_totals`**: usage totals per asset type per Figma run, for all files and for the library file alone.
+- **`figma_team_actions`**: weekly insertions and detachments for each team per Figma run. Team names are private data, like site names.
 
 Row level security is on with no policies, so only the service role can access the tables.
 
@@ -76,7 +77,8 @@ The tiers follow the QGDS brand architecture, which is organised by public perce
 - Detach rate is `null` when there were no insertions. The dashboard shows "No insertions" rather than 0.
 - Detach rate can be above 1, because a component inserted before the period can be detached during it. Do not cap it.
 - `component_actions` is `null` when the run collected no action data.
+- `component_actions.by_team` sums each team's insertions and detachments over the period, most detachments first. Figma cannot split actions by team and component together, so read it beside `by_component`: detachments concentrated in one team suggest a project or practice, and detachments of one component spread across many teams suggest a component issue.
 
 ## Versioning
 
-`schema_version` is `1.2`. Version 1.1 added the optional `figma.totals`. Version 1.2 added `department`, `brand_tier` and `kind` to each site, and the optional `web.breakdowns`. Adding an optional field is a minor change (`1.1`). Removing or renaming a field, or changing its meaning, is a major change (`2.0`) and needs the dashboard updated in the same change.
+`schema_version` is `1.3`. Version 1.1 added the optional `figma.totals`. Version 1.2 added `department`, `brand_tier` and `kind` to each site, and the optional `web.breakdowns`. Version 1.3 added the optional `component_actions.by_team`. Adding an optional field is a minor change (`1.1`). Removing or renaming a field, or changing its meaning, is a major change (`2.0`) and needs the dashboard updated in the same change.

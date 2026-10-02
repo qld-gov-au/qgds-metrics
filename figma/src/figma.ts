@@ -71,3 +71,23 @@ export function libraryTotals(rows: FileUsage[], libraryFileName: string, requir
     usages_library_file: matches[0]?.usages ?? 0,
   };
 }
+
+// Component actions as the API returns them with group_by=team.
+export interface TeamAction { team_name?: string | null; week: string; insertions: number; detachments: number }
+
+// Maps API rows to figma_team_actions rows, keeping only complete weeks in the window.
+// Figma reports every team it will not name as "Team not visible", one row each, so rows
+// with the same name and week are added together. Rows without a name become "(no team)".
+export function teamActionRows(runId: string, actions: TeamAction[], window: { startDate: string; lastWeek: string }) {
+  const rows = new Map<string, { run_id: string; team_name: string; week: string; insertions: number; detachments: number }>();
+  for (const r of actions) {
+    if (r.week < window.startDate || r.week > window.lastWeek) continue;
+    const team_name = r.team_name?.trim() || "(no team)";
+    const key = `${team_name}\u0000${r.week}`;
+    const row = rows.get(key) ?? { run_id: runId, team_name, week: r.week, insertions: 0, detachments: 0 };
+    row.insertions += r.insertions ?? 0;
+    row.detachments += r.detachments ?? 0;
+    rows.set(key, row);
+  }
+  return [...rows.values()];
+}

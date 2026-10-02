@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { actionRows, libraryTotals, parseFileKey, usageRows, weekWindow } from "../src/figma.ts";
+import { actionRows, libraryTotals, parseFileKey, teamActionRows, usageRows, weekWindow } from "../src/figma.ts";
 
 const KEY = "AbCdEfGhIjKlMnOpQrStUv";
 
@@ -69,4 +69,22 @@ test("libraryTotals requires a match for components but not for styles or variab
 test("libraryTotals refuses an ambiguous name", () => {
   const rows = [{ file_name: "Example library", usages: 1 }, { file_name: "Example library", usages: 2 }];
   assert.throws(() => libraryTotals(rows, "Example library", false), /2 files are named like the library/);
+});
+
+test("teamActionRows keeps complete weeks and names rows without a team", () => {
+  const rows = teamActionRows("run", [
+    { team_name: "Example team", week: "2026-07-05", insertions: 3, detachments: 1 },
+    { team_name: null, week: "2026-07-12", insertions: 2, detachments: 0 },
+    { team_name: "Example team", week: "2026-09-27", insertions: 9, detachments: 9 },
+  ], { startDate: "2026-07-05", lastWeek: "2026-09-20" });
+  assert.deepEqual(rows.map((r) => [r.team_name, r.week, r.detachments]), [["Example team", "2026-07-05", 1], ["(no team)", "2026-07-12", 0]]);
+});
+
+test("teamActionRows adds together teams Figma will not name", () => {
+  const rows = teamActionRows("run", [
+    { team_name: "Team not visible", week: "2026-07-05", insertions: 3, detachments: 1 },
+    { team_name: "Team not visible", week: "2026-07-05", insertions: 2, detachments: 2 },
+    { team_name: "Example team", week: "2026-07-05", insertions: 1, detachments: 0 },
+  ], { startDate: "2026-07-05", lastWeek: "2026-09-20" });
+  assert.deepEqual(rows.map((r) => [r.team_name, r.insertions, r.detachments]), [["Team not visible", 5, 3], ["Example team", 1, 0]]);
 });
