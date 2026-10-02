@@ -103,7 +103,7 @@ test("Figma totals leave out the library file", () => {
     ],
   });
   assertValid(s);
-  assert.equal(s.schema_version, "1.2");
+  assert.equal(s.schema_version, "1.3");
   assert.deepEqual(s.figma?.totals, { excludes: "library_file", component_instances: 960, style_uses: 500, variable_uses: 190 });
 });
 
@@ -132,4 +132,27 @@ test("breakdowns group the latest run by brand tier and department", () => {
     ["Example department", 2, 1], ["Other department", 1, 1], [null, 1, 0],
   ]);
   assert.deepEqual(s.web?.sites[0], { url: "https://site-a.example/", organisation: null, department: "Example department", brand_tier: "sub_brand", kind: "website", status: "ok", failure_type: null, uses_qgds: true, codebases: ["bootstrap"] });
+});
+
+test("by_team sums each team over the period, most detachments first", () => {
+  const action = (component_key: string, week: string, insertions: number, detachments: number) => ({
+    component_key, component_name: `Example ${component_key}`, component_group: null, week, insertions, detachments,
+  });
+  const run = { id: FIGMA, started_at: "2026-01-09T00:00:00Z", finished_at: "2026-01-09T00:01:00Z" };
+  const s = buildSnapshot({
+    ...empty, figmaRun: run, figmaActions: [action("k1", "2026-01-05", 10, 3)],
+    figmaTeamActions: [
+      { team_name: "Example team", week: "2025-12-29", insertions: 4, detachments: 0 },
+      { team_name: "Other example team", week: "2026-01-05", insertions: 2, detachments: 3 },
+      { team_name: "Example team", week: "2026-01-05", insertions: 4, detachments: 0 },
+    ],
+  });
+  assertValid(s);
+  assert.deepEqual(s.figma?.component_actions?.by_team, [
+    { name: "Other example team", insertions: 2, detachments: 3, detach_rate: 1.5 },
+    { name: "Example team", insertions: 8, detachments: 0, detach_rate: 0 },
+  ]);
+  const without = buildSnapshot({ ...empty, figmaRun: run, figmaActions: [action("k1", "2026-01-05", 10, 3)] });
+  assertValid(without);
+  assert.equal("by_team" in (without.figma?.component_actions ?? {}), false);
 });

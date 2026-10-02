@@ -93,6 +93,19 @@ create table figma_component_actions (
   primary key (run_id, component_key, week)
 );
 
+-- Figma Library Analytics component actions, one row per team per week per Figma run.
+-- Figma cannot split actions by team and component together, so this sits beside
+-- figma_component_actions. Team names are private data, like site names.
+create table figma_team_actions (
+  run_id       uuid not null references runs (id) on delete cascade,
+  -- As Figma reports it, including "<Drafts>" for personal drafts.
+  team_name    text not null,
+  week         date not null,
+  insertions   integer not null default 0 check (insertions >= 0),
+  detachments  integer not null default 0 check (detachments >= 0),
+  primary key (run_id, team_name, week)
+);
+
 -- Usage totals per asset type per Figma run, all files and the library file alone.
 -- Per-component usage cannot be split by file, so the library file is excluded from
 -- totals only. Stores counts, not file or team names.
@@ -111,3 +124,4 @@ alter table site_results  enable row level security;
 alter table figma_usage   enable row level security;
 alter table figma_component_actions enable row level security;
 alter table figma_usage_totals enable row level security;
+alter table figma_team_actions enable row level security;

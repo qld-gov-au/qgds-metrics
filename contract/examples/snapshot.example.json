@@ -1,5 +1,5 @@
 {
-  "schema_version": "1.2",
+  "schema_version": "1.3",
   "generated_at": "2026-01-02T00:10:00Z",
   "web": {
     "run": {
@@ -109,6 +109,10 @@
       ],
       "by_component": [
         { "key": "component-key-1", "name": "Example button", "group": "Example button set", "insertions": 20, "detachments": 2, "detach_rate": 0.1 }
+      ],
+      "by_team": [
+        { "name": "Example team", "insertions": 15, "detachments": 2, "detach_rate": 0.1333 },
+        { "name": "Other example team", "insertions": 5, "detachments": 0, "detach_rate": 0 }
       ]
     }
   }

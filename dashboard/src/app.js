@@ -452,6 +452,26 @@ function renderFigma(figma) {
         mostDetached.map((c) => [c.name, number.format(c.detachments), number.format(c.insertions), rate(c.detach_rate)])),
     );
   }
+
+  // Teams (snapshot 1.3 and later). Figma cannot split actions by team and component together,
+  // so this is read beside the components table.
+  if (actions.by_team) {
+    const teams = actions.by_team.filter((t) => t.insertions > 0 || t.detachments > 0);
+    root.append(h("h3", {}, "Detachments by team"));
+    if (teams.length === 0) {
+      root.append(alert("info", "No team activity", "No team inserted or detached library components in this period."));
+    } else {
+      const notes = [];
+      if (teams.some((t) => t.name === "Team not visible")) notes.push("Team not visible adds together teams whose names Figma does not share.");
+      if (teams.some((t) => t.name === "<Drafts>")) notes.push("Drafts are files in people's personal drafts, not in a team.");
+      root.append(
+        h("p", {}, `Every team that used library components in this period, most detachments first. Read it beside the components table: detachments concentrated in one team suggest a project or way of working to follow up with that team, while one component detached across many teams suggests a problem with the component.`),
+        dataTable("Detachments by team", [{ label: "Team" }, { label: "Detachments", num: true }, { label: "Insertions", num: true }, { label: "Detach rate", num: true }],
+          teams.map((t) => [t.name, number.format(t.detachments), number.format(t.insertions), rate(t.detach_rate)])),
+        notes.length ? h("p", { class: "chart-note" }, notes.join(" ")) : null,
+      );
+    }
+  }
 }
 
 function main() {

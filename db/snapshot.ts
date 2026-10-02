@@ -56,6 +56,8 @@ export interface SnapshotInput {
   figmaActions: FigmaActionRow[];
   // Empty for Figma runs collected before snapshot 1.1.
   figmaTotals: FigmaTotalsRow[];
+  // Empty for Figma runs collected before snapshot 1.3.
+  figmaTeamActions?: FigmaTeamActionRow[];
 }
 
 // Detachments divided by insertions, rounded to 4 places. Null when there were no insertions.
@@ -121,9 +123,16 @@ function buildWeb(runs: RunRow[], results: SiteResultRow[]) {
   };
 }
 
-function buildComponentActions(rows: FigmaActionRow[]) {
+export interface FigmaTeamActionRow {
+  team_name: string;
+  week: string;
+  insertions: number;
+  detachments: number;
+}
+
+function buildComponentActions(rows: FigmaActionRow[], teamRows: FigmaTeamActionRow[] = []) {
   if (rows.length === 0) return null;
-  const counts = (list: FigmaActionRow[]) => {
+  const counts = (list: { insertions: number; detachments: number }[]) => {
     const insertions = list.reduce((n, r) => n + r.insertions, 0);
     const detachments = list.reduce((n, r) => n + r.detachments, 0);
     return { insertions, detachments, detach_rate: detachRate(insertions, detachments) };
@@ -141,6 +150,14 @@ function buildComponentActions(rows: FigmaActionRow[]) {
         return { key, name: list[0].component_name, group: list[0].component_group, ...counts(list) };
       })
       .sort((a, b) => b.detachments - a.detachments || a.name.localeCompare(b.name)),
+    // Only for runs that collected team actions, so older snapshots stay as they were.
+    ...(teamRows.length > 0
+      ? {
+          by_team: [...new Set(teamRows.map((r) => r.team_name))]
+            .map((name) => ({ name, ...counts(teamRows.filter((r) => r.team_name === name)) }))
+            .sort((a, b) => b.detachments - a.detachments || b.insertions - a.insertions || a.name.localeCompare(b.name)),
+        }
+      : {}),
   };
 }
 
@@ -155,7 +172,7 @@ function buildFigmaTotals(rows: FigmaTotalsRow[]) {
   return { excludes: "library_file" as const, component_instances, style_uses, variable_uses };
 }
 
-function buildFigma(figmaRun: RunRow | null, usage: FigmaUsageRow[], actions: FigmaActionRow[], totals: FigmaTotalsRow[]) {
+function buildFigma(figmaRun: RunRow | null, usage: FigmaUsageRow[], actions: FigmaActionRow[], totals: FigmaTotalsRow[], teamActions: FigmaTeamActionRow[]) {
   if (!figmaRun) return null;
   const assets = (type: FigmaUsageRow["asset_type"]) =>
     usage
@@ -168,15 +185,15 @@ function buildFigma(figmaRun: RunRow | null, usage: FigmaUsageRow[], actions: Fi
     styles: assets("style"),
     variables: assets("variable"),
     totals: buildFigmaTotals(totals),
-    component_actions: buildComponentActions(actions),
+    component_actions: buildComponentActions(actions, teamActions),
   };
 }
 
 export function buildSnapshot(input: SnapshotInput) {
   return {
-    schema_version: "1.2" as const,
+    schema_version: "1.3" as const,
     generated_at: input.generatedAt,
     web: buildWeb(input.webRuns, input.webResults),
-    figma: buildFigma(input.figmaRun, input.figmaUsage, input.figmaActions, input.figmaTotals),
+    figma: buildFigma(input.figmaRun, input.figmaUsage, input.figmaActions, input.figmaTotals, input.figmaTeamActions ?? []),
   };
 }
