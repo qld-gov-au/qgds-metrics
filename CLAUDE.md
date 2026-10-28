@@ -63,6 +63,7 @@ Figma headline totals leave out the QGDS library file, found by `FIGMA_LIBRARY_F
 - **Interrupted crawls can be finished.** Saves are retried through short network drops. If a crawl still fails, `npm run monthly -- --resume` checks only the sites without a result, then builds. `npm run crawl:status` shows progress from a second terminal.
 - **The workflow also runs on its own** at 3 am Brisbane time on the 2nd of each month, rebuilding from the latest data.
 - **The dashboard flags stale data.** If the latest crawl is more than 35 days old, it shows a warning.
+- **Discovery finds missing sites.** `npm run discover` reads current qld.gov.au hostnames from the crt.sh certificate log database, filters them (`crawler/src/discover/rules.ts`), visits the rest and writes `fixtures/discovery/candidates.csv` for review. `npm run discover:apply` adds rows marked `add` to the site list and remembers `skip` rows in `fixtures/discovery/excluded.txt`. Many work networks block crt.sh's database port, so a saved hostname list is used when it cannot be reached. Never run discovery during a crawl.
 
 ## Repository structure
 

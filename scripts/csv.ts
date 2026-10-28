@@ -25,3 +25,13 @@ export function parseCsv(text: string): Record<string, string>[] {
   const keys = header.map((h) => h.trim().toLowerCase());
   return body.map((r) => Object.fromEntries(keys.map((k, i) => [k, (r[i] ?? "").trim()])));
 }
+
+// Writes rows as CSV with Windows line endings, which Excel opens cleanly. Quotes fields that
+// contain a comma, quote or line break.
+export function toCsv(columns: string[], rows: Record<string, string | number | null | undefined>[]): string {
+  const cell = (v: string | number | null | undefined) => {
+    const s = v == null ? "" : String(v);
+    return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  return [columns.join(","), ...rows.map((r) => columns.map((c) => cell(r[c])).join(","))].join("\r\n") + "\r\n";
+}
