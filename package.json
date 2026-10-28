@@ -16,6 +16,8 @@
     "crawler:seeds": "node crawler/src/check-seeds.ts",
     "crawl": "node crawler/src/crawl.ts",
     "crawl:status": "node crawler/src/status.ts",
+    "discover": "node crawler/src/discover/discover.ts",
+    "discover:apply": "node crawler/src/discover/apply.ts",
     "figma": "node figma/src/collect.ts",
     "monthly": "node scripts/monthly.ts",
     "export": "node db/export-snapshot.ts",

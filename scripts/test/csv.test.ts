@@ -18,3 +18,11 @@ test("handles Unix line endings, a byte order mark, blank lines and missing trai
 test("keeps line breaks inside quoted fields", () => {
   assert.equal(parseCsv('a,b\n"line one\nline two",x\n')[0].a, "line one\nline two");
 });
+
+test("toCsv quotes where needed and reads back the same", async () => {
+  const { toCsv } = await import("../csv.ts");
+  const rows = [{ a: "plain", b: "with, comma" }, { a: 'say "hi"', b: null }];
+  const text = toCsv(["a", "b"], rows);
+  assert.equal(text, 'a,b\r\nplain,"with, comma"\r\n"say ""hi""",\r\n');
+  assert.deepEqual(parseCsv(text), [{ a: "plain", b: "with, comma" }, { a: 'say "hi"', b: "" }]);
+});
