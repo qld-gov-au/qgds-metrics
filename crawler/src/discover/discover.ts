@@ -3,6 +3,8 @@
 //   npm run discover                       find and check new hostnames
 //   npm run discover -- --recheck-days 30  also recheck hostnames checked more than 30 days ago
 //   npm run discover -- --limit 20         check at most 20 hostnames, for testing
+//   npm run discover -- --review-only      rebuild the review file from saved results, with no
+//                                          visits, for example after the rules change
 //
 // 1. Asks the public certificate logs (crt.sh) for every qld.gov.au hostname with a current
 //    certificate, and saves the list. crt.sh is reached on database port 5432, which many work
@@ -20,7 +22,7 @@ import { parseCsv, toCsv } from "../../../scripts/csv.ts";
 import { serviceClient } from "../../../scripts/supabase.ts";
 import { BLOCKED_RESOURCE_TYPES, DELAY_BETWEEN_SITES_MS, PAGE_TIMEOUT_MS, USER_AGENT, VIEWPORT } from "../config.ts";
 import { checkRobots } from "../robots.ts";
-import { classify, departmentsIn, parentOf, prefilter, ROOT_DOMAIN, type Outcome, type Visit } from "./rules.ts";
+import { classify, departmentsIn, pageSigns, parentOf, prefilter, ROOT_DOMAIN, type Outcome, type Visit } from "./rules.ts";
 
 const DIR = "fixtures/discovery";
 const CHECKED = `${DIR}/checked.csv`;
@@ -34,6 +36,7 @@ const PARALLEL_SITES = 4;
 const arg = (name: string) => { const i = process.argv.indexOf(name); return i > -1 ? process.argv[i + 1] : undefined; };
 const recheckDays = Number(arg("--recheck-days") ?? 180);
 const limit = arg("--limit") ? Number(arg("--limit")) : Infinity;
+const reviewOnly = process.argv.includes("--review-only");
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const bare = (h: string) => h.toLowerCase().replace(/^www\./, "");
 
@@ -58,47 +61,52 @@ const departmentNames = [...new Set(sites.map((r) => r.department).filter(Boolea
 const checked = new Map((existsSync(CHECKED) ? parseCsv(readFileSync(CHECKED, "utf8")) : []).map((r) => [r.host, r]));
 
 // 1. Hostnames from the certificate logs.
-console.log("Step 1 of 3: asking the certificate logs for current hostnames.");
-let hostnames: string[] = [];
-const sql = postgres({ host: "crt.sh", port: 5432, database: "certwatch", username: "guest", max: 1, connect_timeout: 30, idle_timeout: 5, ssl: false, prepare: false });
-try {
-  const rows = await sql.unsafe(
-    `SELECT DISTINCT lower(cai.name_value) AS name FROM certificate_and_identities cai
-     WHERE plainto_tsquery('certwatch', $1) @@ identities(cai.certificate)
-       AND cai.name_value ILIKE $2 AND cai.name_type = 'san:dNSName'
-       AND x509_notAfter(cai.certificate) > now()
-     LIMIT 200000`,
-    [ROOT_DOMAIN, `%.${ROOT_DOMAIN}`],
-  );
-  hostnames = [...new Set(rows.map((r) => bare(String(r.name).replace(/^\*\./, ""))).filter((n) => /^[a-z0-9.-]+$/.test(n) && n.endsWith(`.${ROOT_DOMAIN}`)))].sort();
-  writeFileSync(HOSTNAMES, `# Saved ${new Date().toISOString()} from crt.sh\n${hostnames.join("\n")}\n`);
-  console.log(`Saved ${hostnames.length} hostnames for next time.`);
-} catch (err) {
-  const code = (err as { code?: string }).code ?? (err as Error).name;
-  if (!existsSync(HOSTNAMES)) {
-    console.error(`The certificate logs could not be reached (${code}) and there is no saved list yet. Run discover once from a network that allows database connections, such as home internet or a phone hotspot.`);
-    process.exit(1);
+async function loadHostnames(): Promise<string[]> {
+  console.log("Step 1 of 3: asking the certificate logs for current hostnames.");
+  const sql = postgres({ host: "crt.sh", port: 5432, database: "certwatch", username: "guest", max: 1, connect_timeout: 30, idle_timeout: 5, ssl: false, prepare: false });
+  try {
+    const rows = await sql.unsafe(
+      `SELECT DISTINCT lower(cai.name_value) AS name FROM certificate_and_identities cai
+       WHERE plainto_tsquery('certwatch', $1) @@ identities(cai.certificate)
+         AND cai.name_value ILIKE $2 AND cai.name_type = 'san:dNSName'
+         AND x509_notAfter(cai.certificate) > now()
+       LIMIT 200000`,
+      [ROOT_DOMAIN, `%.${ROOT_DOMAIN}`],
+    );
+    const hostnames = [...new Set(rows.map((r) => bare(String(r.name).replace(/^\*\./, ""))).filter((n) => /^[a-z0-9.-]+$/.test(n) && n.endsWith(`.${ROOT_DOMAIN}`)))].sort();
+    writeFileSync(HOSTNAMES, `# Saved ${new Date().toISOString()} from crt.sh\n${hostnames.join("\n")}\n`);
+    console.log(`Saved ${hostnames.length} hostnames for next time.`);
+    return hostnames;
+  } catch (err) {
+    const code = (err as { code?: string }).code ?? (err as Error).name;
+    if (!existsSync(HOSTNAMES)) {
+      console.error(`The certificate logs could not be reached (${code}) and there is no saved list yet. Run discover once from a network that allows database connections, such as home internet or a phone hotspot.`);
+      process.exit(1);
+    }
+    const text = readFileSync(HOSTNAMES, "utf8");
+    const saved = text.match(/^# Saved (\S+)/)?.[1];
+    const days = saved ? Math.floor((Date.now() - Date.parse(saved)) / 86_400_000) : null;
+    const hostnames = text.split(/\r?\n/).filter((l) => l && !l.startsWith("#"));
+    console.log(`The certificate logs could not be reached (${code}). Many work networks block them. Using the saved list of ${hostnames.length} hostnames${days !== null ? ` from ${days} day(s) ago` : ""}.`);
+    if (days === null || days > 60) console.log("The saved list is old. To refresh it, run discover from a network that allows database connections, such as home internet or a phone hotspot.");
+    return hostnames;
+  } finally {
+    await sql.end({ timeout: 2 }).catch(() => {});
   }
-  const text = readFileSync(HOSTNAMES, "utf8");
-  const saved = text.match(/^# Saved (\S+)/)?.[1];
-  const days = saved ? Math.floor((Date.now() - Date.parse(saved)) / 86_400_000) : null;
-  hostnames = text.split(/\r?\n/).filter((l) => l && !l.startsWith("#"));
-  console.log(`The certificate logs could not be reached (${code}). Many work networks block them. Using the saved list of ${hostnames.length} hostnames${days !== null ? ` from ${days} day(s) ago` : ""}.`);
-  if (days === null || days > 60) console.log("The saved list is old. To refresh it, run discover from a network that allows database connections, such as home internet or a phone hotspot.");
-} finally {
-  await sql.end({ timeout: 2 }).catch(() => {});
 }
+if (reviewOnly) console.log("Rebuilding the review file from saved results. No sites are visited.");
+const hostnames = reviewOnly ? [] : await loadHostnames();
 
 // 2. Drop what does not need a visit.
 const reasons = new Map<string, number>();
 const fresh = (host: string) => { const c = checked.get(host); return c && Date.now() - Date.parse(c.checked_at) < recheckDays * 86_400_000; };
-const toCheck = hostnames.filter((h) => {
+const toCheck = reviewOnly ? [] : hostnames.filter((h) => {
   const p = prefilter(h, { listed, excluded });
   if (!p.keep) { reasons.set(p.reason, (reasons.get(p.reason) ?? 0) + 1); return false; }
   if (fresh(h)) { reasons.set("Checked recently", (reasons.get("Checked recently") ?? 0) + 1); return false; }
   return true;
 }).slice(0, limit);
-console.log(`Found ${hostnames.length} hostnames. ${toCheck.length} to check. Left out: ${[...reasons].map(([r, n]) => `${n} ${r.toLowerCase()}`).join(", ") || "none"}.`);
+if (!reviewOnly) console.log(`Found ${hostnames.length} hostnames. ${toCheck.length} to check. Left out: ${[...reasons].map(([r, n]) => `${n} ${r.toLowerCase()}`).join(", ") || "none"}.`);
 
 // 3. Visit each one in a browser. Each result is saved as it comes, so a stopped run loses nothing.
 async function visitHost(browser: Browser, host: string): Promise<Record<string, string>> {
@@ -157,11 +165,12 @@ if (toCheck.length > 0) {
 }
 
 // 4. Write the review file: every checked public site or sign-in app not yet listed or rejected.
-console.log("Step 3 of 3: writing the review file.");
+// The hostname and page rules run again on saved results, so rule changes apply without a visit.
+if (!reviewOnly) console.log("Step 3 of 3: writing the review file.");
 const previous = new Map((existsSync(CANDIDATES) ? parseCsv(readFileSync(CANDIDATES, "utf8")) : []).map((r) => [r.checked_host, r]));
 const seenUrls = new Set<string>();
 const candidates = [...checked.values()]
-  .filter((c) => (c.outcome === "public_site" || c.outcome === "sign_in") && !listed.has(c.host) && !excluded.has(c.host))
+  .filter((c) => (c.outcome === "public_site" || c.outcome === "sign_in") && prefilter(c.host, { listed, excluded }).keep && !pageSigns(c.host, c.final_url, c.title))
   .map((c) => {
     // For a sign-in page, record the app's own address, never the sign-in page.
     const url = c.outcome === "sign_in" || !c.final_url ? `https://${c.host}/` : c.final_url;

@@ -13,10 +13,14 @@ export function branchOf(host: string): string {
 
 // Hostnames that are infrastructure, not websites. Matched on any label of the hostname.
 const INFRASTRUCTURE_LABEL = /^(api|apis|mail|smtp|mx|autodiscover|vpn|remote|citrix|adfs|sso|sts|login|auth|idp|owa|webmail|ftp|sftp|lyncdiscover|sip|enterpriseenrollment|enterpriseregistration|cdn|static|assets|media|img|images|files|proxy|gateway|admin|origin|lb|waf|monitor|grafana|kibana|jenkins|gitlab|git|sonar|nexus|splunk|internal|intranet|backup|link)$/;
-// Labels that mark a test or non-production copy: alone, after a hyphen, or joined to a name
-// ("formsdev", "stagingportal"). "test" and "stage" begin ordinary words, so they only count
-// at the end of a label.
-const NON_PRODUCTION = /(^|-)(dev|uat|test|tst|stg|stage|staging|sit|qa|preprod|nonprod|np|sandbox|sandpit|demo|trn|train|training|ppd|ppt|prp)\d*$|^(dev|uat|staging|training)[a-z0-9]+$|[a-z](dev|uat|test|staging|training)$/;
+// Labels that mark a test or non-production copy: alone or at either end of a hyphenated label
+// ("uat", "tst2-portal", "app-dev"), or joined to a name ("formsdev", "stagingportal",
+// "appsit"). "test" and "stage" begin ordinary words, so joined to a name they only count at
+// the end. "sit" ends "visit" and "transit", so those are left alone.
+const ENV = "dev|uat|test|tst|stg|stage|staging|sit|syst|qa|preprod|pre-prod|nonprod|nprd|np|sandbox|sandpit|demo|trn|train|training|ppd|ppt|prp|preview|prep|stress|perf";
+const NON_PRODUCTION = new RegExp(
+  `(^|-)(${ENV})\\d*$|^(${ENV})\\d*-|^(dev|uat|staging|training|preprod)[a-z0-9]+$|[a-z](dev|uat|test|staging|training|preprod|preprd|nprd|tst|trn|mig)$|[a-z](?<!vi|an)sit$|dev(one|two|three|four|five|six|seven|eight|nine|ten)$`,
+);
 
 export type Prefilter = { keep: true } | { keep: false; reason: string };
 
@@ -47,7 +51,26 @@ export type Outcome = "public_site" | "sign_in" | "redirects_to_listed" | "counc
 const SIGN_IN = /login|signin|sign-in|logon|microsoftonline|okta|b2clogin|adfs|saml|sso|oauth|authorize|identity|\/auth\b/i;
 const PLACEHOLDER = /parked|domain (is )?for sale|coming soon|under construction|default (web )?(site|page)|iis windows server|apache2? .*(default|test) page|welcome to nginx|index of \/|it works!|page not found|not found|\b404\b|maintenance mode|unavailable|has moved/i;
 // Staff sign-in services and tools: a candidate that lands on one is not for the public.
-const STAFF = /mydesktop|citrix|netscaler|omnissa|big-ip|logonpoint|sslvpn|my\.policy|\/idp\/|intranet|\blms\b|pexip|pentaho|jboss|smtp2go|kiteworks|arcgis\/rest\/services/i;
+// Matched on the visited hostname, the landed hostname and path, and the page title.
+const STAFF = /mydesktop|citrix|netscaler|omnissa|big-ip|logonpoint|sslvpn|vpn\d*\.|-fw\.|globalprotect|my\.policy|\/idp\/|intranet|\blms\b|pexip|pentaho|jboss|smtp2go|vision6|kiteworks|arcgis\/rest\/services|authentik|atlassian|jira|confluence|itsm\.|integrum|myhr|work zone|internal careers|staff portal|virtual desktop|internal data|password protected|central authentication service/i;
+// Pages that refused the check. The check never works around a block, so these are not
+// candidates.
+const BLOCKED = /web page blocked|request rejected|access denied|just a moment|attention required/i;
+
+// Council pages that a qld.gov.au hostname leads to, named in the title.
+const COUNCIL_TITLE = /\b(regional|shire|city|town) council\b|^city of |organisation of councils|\bcouncil\s*(\||$)/i;
+
+// What the visited hostname and the landed page say: a block, a staff tool or a council. Also run
+// on saved results, so rule changes apply without visiting sites again. The hostname counts
+// because many staff tools hand over to a general sign-in service that names nothing.
+export function pageSigns(host: string, finalUrl: string, title: string): { outcome: Outcome; reason: string } | null {
+  let target = finalUrl;
+  try { const u = new URL(finalUrl); target = u.hostname + u.pathname; } catch { /* keep as is */ }
+  if (BLOCKED.test(title)) return { outcome: "not_live", reason: "Blocked the check" };
+  if (STAFF.test(`${bare(host)}. ${target} ${title}`)) return { outcome: "staff_or_test", reason: "Staff tool or sign-in" };
+  if (COUNCIL_TITLE.test(title)) return { outcome: "council", reason: "Council page" };
+  return null;
+}
 
 export function classify(visit: Visit, host: string, known: { listed: Set<string> }): { outcome: Outcome; reason: string } {
   if (visit.error) return { outcome: "not_live", reason: visit.error };
@@ -57,7 +80,8 @@ export function classify(visit: Visit, host: string, known: { listed: Set<string
   const finalHost = bare(final.hostname);
   if (finalHost !== bare(host) && known.listed.has(finalHost)) return { outcome: "redirects_to_listed", reason: `Redirects to ${finalHost}` };
   if (finalHost.endsWith(ROOT_DOMAIN) && /(rc|sc|council|shire)$/.test(branchOf(finalHost))) return { outcome: "council", reason: `Redirects to ${finalHost}` };
-  if (STAFF.test(`${final.hostname}${final.pathname} ${visit.title}`)) return { outcome: "staff_or_test", reason: "Staff tool or sign-in" };
+  const signs = pageSigns(host, visit.finalUrl, visit.title);
+  if (signs) return signs;
   if (SIGN_IN.test(final.hostname + final.pathname) || visit.hasPassword) return { outcome: "sign_in", reason: `Sign-in page at ${final.hostname}` };
   if (PLACEHOLDER.test(visit.title)) return { outcome: "placeholder", reason: `Title: ${visit.title.slice(0, 60)}` };
   if (visit.textLength < 150) return { outcome: "placeholder", reason: "Almost empty page" };

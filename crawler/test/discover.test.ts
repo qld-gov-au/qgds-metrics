@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { branchOf, classify, departmentsIn, parentOf, prefilter, type Visit } from "../src/discover/rules.ts";
+import { branchOf, classify, departmentsIn, pageSigns, parentOf, prefilter, type Visit } from "../src/discover/rules.ts";
 
 // Placeholder hostnames only. qld.gov.au is the root domain the rules work under.
 const known = { listed: new Set(["example.qld.gov.au", "app.example.qld.gov.au"]), excluded: new Set(["rejected.qld.gov.au", "oldbranch"]) };
@@ -30,6 +30,29 @@ test("prefilter does not mistake ordinary words for test markers", () => {
   assert.equal(prefilter("stagecraft.new.qld.gov.au", known).keep, true);
   assert.equal(prefilter("stagingportal.new.qld.gov.au", known).keep, false);
   assert.equal(prefilter("shoptest.new.qld.gov.au", known).keep, false);
+  assert.equal(prefilter("visit.new.qld.gov.au", known).keep, true);
+  assert.equal(prefilter("transit.new.qld.gov.au", known).keep, true);
+});
+
+test("prefilter catches test names at either end of a label", () => {
+  for (const h of ["uat2-portal.new.qld.gov.au", "tst-portal.new.qld.gov.au", "pre-prod.app.new.qld.gov.au", "preprod-careers.new.qld.gov.au",
+    "training-careers.new.qld.gov.au", "change.test-services.new.qld.gov.au", "forms.syst.new.qld.gov.au", "jury.cloud-paasnprd.new.qld.gov.au",
+    "support.app-stress.new.qld.gov.au", "appsit.new.qld.gov.au", "apptst.new.qld.gov.au", "apptrn.new.qld.gov.au", "apppreprd.new.qld.gov.au",
+    "appmig.new.qld.gov.au", "appdevfour.new.qld.gov.au", "iampreprod.new.qld.gov.au", "preview.portal.new.qld.gov.au"]) {
+    assert.equal(prefilter(h, known).keep, false, h);
+  }
+});
+
+test("pageSigns spots staff tools, blocked checks and council pages", () => {
+  assert.equal(pageSigns("new.qld.gov.au", "https://login.mailtool.example/", "Login")?.outcome ?? "none", "none");
+  assert.equal(pageSigns("new.qld.gov.au", "https://login.vision6.com/", "Login")?.outcome, "staff_or_test");
+  assert.equal(pageSigns("new.qld.gov.au", "https://vpn1.new.qld.gov.au/", "GlobalProtect Portal")?.outcome, "staff_or_test");
+  assert.equal(pageSigns("new.qld.gov.au", "https://new.qld.gov.au/", "System Dashboard - JIRA")?.outcome, "staff_or_test");
+  assert.equal(pageSigns("new.qld.gov.au", "https://new.qld.gov.au/", "Just a moment...")?.outcome, "not_live");
+  assert.equal(pageSigns("new.qld.gov.au", "https://new.qld.gov.au/", "WEB PAGE BLOCKED")?.outcome, "not_live");
+  assert.equal(pageSigns("integrum.new.qld.gov.au", "https://login.microsoftonline.com/x/oauth2/authorize", "Sign in to your account")?.outcome, "staff_or_test");
+  assert.equal(pageSigns("new.qld.gov.au", "https://new.qld.gov.au/", "Community directory | Example Regional Council")?.outcome, "council");
+  assert.equal(pageSigns("new.qld.gov.au", "https://new.qld.gov.au/", "Example service"), null);
 });
 
 test("classify sorts visits into outcomes", () => {

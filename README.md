@@ -156,15 +156,22 @@ This:
 1. Gets every `qld.gov.au` website address from public records of website security certificates.
 2. Leaves out addresses already on the list, addresses you rejected before, councils, and addresses that are clearly test or technical systems.
 3. Visits the rest, one at a time per website, to see which are real public websites or apps.
-4. Writes the results to `fixtures/discovery/candidates.csv`.
+4. Leaves out staff tools, councils, and pages that blocked the check.
+5. Writes the results to `fixtures/discovery/candidates.csv`.
 
 The first run takes about half an hour. Later runs only visit new addresses, so they are much quicker.
+
+To rebuild the review file from the saved results without visiting any websites, for example after the discovery rules change, run:
+
+```
+npm run discover -- --review-only
+```
 
 If it says the certificate records could not be reached, your network is blocking them. It then uses the last saved copy, which is fine. Every month or two, run `npm run discover` from home internet or a phone hotspot to refresh that copy.
 
 ### 2. Review the candidates
 
-Open `fixtures/discovery/candidates.csv` in Excel or Numbers. Each row is a website or app that is not on the list. The organisation, department and brand tier are filled in from the closest site already on the list, so check them.
+Open `fixtures/discovery/candidates.csv` in Excel or Numbers. Each row is a website or app that is not on the list. The organisation, department and brand tier are filled in from the closest site already on the list, so check them against the QGDS team's site list in Confluence.
 
 In the `decision` column, type:
 
@@ -210,7 +217,7 @@ Each row has these columns:
 | `needs_review` | `yes` if you are not sure about the details, otherwise `no` | `no` |
 | `active` | `yes` to check the site each month, `no` to stop checking it but keep its history | `yes` |
 
-Tip: if the department is not obvious, look at the bottom of the website. Most government sites name their department there.
+The QGDS team's site list in Confluence is the source of truth for `department` and `brand_tier`. Use its values when it has them. If it leaves a value blank, look at the bottom of the website. Most government sites name their department there.
 
 ### 3. Decide whether a site belongs on the list
 
@@ -220,14 +227,17 @@ Include:
 - statutory bodies
 - campaign websites, even old ones that are still online
 - apps and services people sign in to (set `kind` to `app`)
+- independent organisations that are on the Confluence site list. Set `brand_tier` to `stand_alone` and leave `department` blank.
 
 Do not include:
 
 - council websites, because councils are a different level of government
 - websites that are only for staff, such as intranets
-- organisations that work with government but are not part of it
+- other organisations that work with government but are not part of it
 - pages that are just part of a website already on the list
 - addresses that only redirect to a website already on the list
+
+If a staff website or an old redirecting address is on the Confluence site list, add it with `active` set to `no`. This keeps the 2 lists matching, but the website check never visits it, because it only checks public pages.
 
 If a website stops loading, set `active` to `no` instead of deleting the row.
 
